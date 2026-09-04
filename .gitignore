@@ -32,6 +32,21 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+
+# editor / OS
+.vscode/*
+!.vscode/extensions.json
+Thumbs.db
+
+# playwright
+/test-results/
+/playwright-report/
+/blob-report/
+
+# prisma
+/prisma/dev.db*
+/src/generated/
 
 # vercel
 .vercel

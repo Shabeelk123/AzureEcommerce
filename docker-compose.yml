@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: azurehijabs
+    ports:
+      # Host port 5433: a native Postgres service is already listening on
+      # the host's 5432 (common on Windows dev machines), which would
+      # silently intercept connections meant for this container.
+      - "5433:5432"
+    volumes:
+      - azurehijabs_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  azurehijabs_pgdata:
