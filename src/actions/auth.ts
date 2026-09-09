@@ -1,6 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
+import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
@@ -98,15 +99,23 @@ export async function signup(
     : await prisma.user.create({ data: { name, email, passwordHash } });
 
   const verifyToken = await createVerificationToken(user.id, "VERIFY_EMAIL");
-  try {
-    await sendVerificationEmail(
-      email,
-      `${env.APP_URL}/api/auth/verify-email?token=${verifyToken}`,
-    );
-  } catch {
-    // Don't block signup on an email provider hiccup — the account still
-    // exists and the user can request another verification email later.
-  }
+  // `after()` runs once the response has already been sent (and still
+  // runs even though this action ends in `redirect()`, per Next's docs) —
+  // true fire-and-forget without either blocking signup on Resend's
+  // latency or orphaning the promise the way a bare unawaited call would
+  // risk on a platform that freezes the process between requests. We're
+  // on a long-lived container, not serverless, but this is the portable,
+  // documented pattern either way.
+  after(async () => {
+    try {
+      await sendVerificationEmail(
+        email,
+        `${env.APP_URL}/api/auth/verify-email?token=${verifyToken}`,
+      );
+    } catch (err) {
+      console.error("[auth] failed to send verification email", err);
+    }
+  });
 
   await establishSession(user.id, user.email, user.role);
   redirect("/account");
@@ -202,11 +211,22 @@ export async function requestPasswordReset(
   const user = await prisma.user.findUnique({ where: { email } });
   if (user?.passwordHash) {
     const token = await createVerificationToken(user.id, "RESET_PASSWORD");
-    try {
-      await sendPasswordResetEmail(email, `${env.APP_URL}/reset-password?token=${token}`);
-    } catch (err) {
-      console.error("[auth] failed to send password reset email", err);
-    }
+    // Deferred via after() for the same reason as the signup email — and
+    // here it also closes a timing side-channel: without it, the
+    // "account exists" branch takes visibly longer than the "no such
+    // account" branch (which skips straight to returning genericState),
+    // which is exactly the kind of signal the identical response text is
+    // trying to deny an attacker.
+    after(async () => {
+      try {
+        await sendPasswordResetEmail(
+          email,
+          `${env.APP_URL}/reset-password?token=${token}`,
+        );
+      } catch (err) {
+        console.error("[auth] failed to send password reset email", err);
+      }
+    });
   }
   return genericState;
 }

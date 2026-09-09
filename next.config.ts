@@ -22,6 +22,14 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "cdn.azurehijabs.com",
       },
+      // Seed-data placeholder images only (prisma/seed.ts) — next/image
+      // 400s on any hostname not explicitly allowlisted here, so this is
+      // required for local dev/demo product photos to render at all.
+      // Drop once real product photography is uploaded to R2.
+      {
+        protocol: "https",
+        hostname: "picsum.photos",
+      },
     ],
   },
 };

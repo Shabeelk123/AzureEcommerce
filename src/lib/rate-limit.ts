@@ -8,8 +8,10 @@ const redis = new Redis({
   token: env.UPSTASH_REDIS_REST_TOKEN,
   // Bound every call — an unreachable/misconfigured Redis must fail fast
   // into checkRateLimit's fail-open catch, not hang a login/checkout
-  // request for however long DNS/TCP takes to give up on its own.
-  signal: () => AbortSignal.timeout(2000),
+  // request for however long DNS/TCP takes to give up on its own. A real,
+  // correctly-configured Upstash endpoint responds in tens of
+  // milliseconds; 1s is already a generous ceiling for the give-up path.
+  signal: () => AbortSignal.timeout(1000),
 });
 
 // Auth endpoints are the highest-value brute-force target in the app, so

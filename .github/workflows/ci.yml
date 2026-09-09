@@ -99,5 +99,16 @@ jobs:
           echo "Dev server did not become healthy in time" >&2
           exit 1
 
+      - name: Warm routes under test
+        # `next dev` (Turbopack) compiles each route on its first request,
+        # not up front — without this, the e2e suite's first hit of
+        # /signup or /admin pays that one-time compile cost on top of
+        # normal render time and can exceed Playwright's expect timeout,
+        # failing a test that has nothing wrong with it.
+        run: |
+          for path in / /login /signup /admin /account /forgot-password; do
+            curl -s -o /dev/null --max-time 30 "http://localhost:3000$path"
+          done
+
       - name: E2E tests
         run: npm run test:e2e

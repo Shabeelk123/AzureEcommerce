@@ -166,6 +166,14 @@ model Product {
   images   ProductImage[]
   variants ProductVariant[]
 
+  // Postgres generated column (title/fabric/description, weighted A/B/C),
+  // maintained by Postgres itself on every write — not by Prisma. Marking
+  // it Unsupported keeps it out of the generated Client's select/create
+  // types entirely; it's only ever touched via $queryRaw in
+  // src/lib/catalog.ts. See prisma/migrations/.../migration.sql for the
+  // `GENERATED ALWAYS AS (...) STORED` definition and its GIN index.
+  searchVector Unsupported("tsvector")?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
