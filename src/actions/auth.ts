@@ -8,6 +8,7 @@ import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { signAccessToken } from "@/lib/auth/jwt";
 import { createSessionFamily, revokeAllForUser, revokeByToken } from "@/lib/auth/session";
 import { mergeGuestCartIntoUser } from "@/lib/cart";
+import { requestIp } from "@/lib/request-ip";
 import {
   clearAuthCookies,
   getRefreshTokenCookie,
@@ -40,13 +41,6 @@ export type AuthFormState = {
   error?: string;
   fieldErrors?: Record<string, string[]>;
 } | null;
-
-async function requestIp(): Promise<string> {
-  const h = await headers();
-  return (
-    h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? h.get("x-real-ip") ?? "unknown"
-  );
-}
 
 async function establishSession(
   userId: string,

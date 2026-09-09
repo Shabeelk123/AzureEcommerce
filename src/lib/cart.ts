@@ -145,6 +145,7 @@ export async function removeItem(cartItemId: string): Promise<void> {
 export type CartLine = {
   id: string;
   variantId: string;
+  sku: string;
   productSlug: string;
   productTitle: string;
   variantLabel: string;
@@ -199,6 +200,7 @@ export async function getCart(): Promise<CartSummary> {
     return {
       id: item.id,
       variantId: variant.id,
+      sku: variant.sku,
       productSlug: product.slug,
       productTitle: product.title,
       variantLabel: [variant.colorName, variant.size].filter(Boolean).join(" / "),

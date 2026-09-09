@@ -34,6 +34,16 @@ export const passwordResetLimiter = new Ratelimit({
   prefix: "ratelimit:password-reset",
 });
 
+// Generous relative to auth limiters — a shopper legitimately retrying a
+// declined card several times shouldn't get locked out, but this still
+// bounds how many PENDING Order + Razorpay Order pairs one identity can
+// spin up in a window.
+export const checkoutLimiter = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(15, "10 m"),
+  prefix: "ratelimit:checkout",
+});
+
 /**
  * Rate limiting is important but must never be a single point of failure
  * for checkout or login: if Upstash is unreachable or (in local dev)

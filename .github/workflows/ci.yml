@@ -106,7 +106,7 @@ jobs:
         # normal render time and can exceed Playwright's expect timeout,
         # failing a test that has nothing wrong with it.
         run: |
-          for path in / /login /signup /admin /account /forgot-password; do
+          for path in / /login /signup /admin /account /forgot-password /cart /checkout /product/signature-jersey-hijab /product/chiffon-drape-hijab; do
             curl -s -o /dev/null --max-time 30 "http://localhost:3000$path"
           done
 

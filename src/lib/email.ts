@@ -4,6 +4,10 @@ import { render } from "@react-email/render";
 import { env } from "@/env";
 import { VerifyEmail } from "@/emails/verify-email";
 import { ResetPasswordEmail } from "@/emails/reset-password";
+import {
+  OrderConfirmationEmail,
+  type OrderConfirmationItem,
+} from "@/emails/order-confirmation";
 
 const resend = new Resend(env.RESEND_API_KEY);
 const SEND_TIMEOUT_MS = 5000;
@@ -56,5 +60,50 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string) {
   if (error) {
     console.error("[email] failed to send password reset email", error);
     throw new Error("Failed to send password reset email");
+  }
+}
+
+type ShippingAddress = {
+  fullName: string;
+  line1: string;
+  line2: string | null;
+  city: string;
+  state: string;
+  pincode: string;
+};
+
+export async function sendOrderConfirmationEmail(order: {
+  email: string;
+  orderNumber: string;
+  subtotalPaise: number;
+  discountPaise: number;
+  shippingPaise: number;
+  totalPaise: number;
+  shippingAddress: unknown;
+  items: OrderConfirmationItem[];
+}) {
+  const html = await render(
+    OrderConfirmationEmail({
+      orderNumber: order.orderNumber,
+      items: order.items,
+      subtotalPaise: order.subtotalPaise,
+      discountPaise: order.discountPaise,
+      shippingPaise: order.shippingPaise,
+      totalPaise: order.totalPaise,
+      shippingAddress: order.shippingAddress as ShippingAddress,
+    }),
+  );
+  const { error } = await withTimeout(
+    resend.emails.send({
+      from: env.EMAIL_FROM,
+      to: order.email,
+      subject: `Order confirmed — ${order.orderNumber}`,
+      html,
+    }),
+    "sendOrderConfirmationEmail",
+  );
+  if (error) {
+    console.error("[email] failed to send order confirmation email", error);
+    throw new Error("Failed to send order confirmation email");
   }
 }
