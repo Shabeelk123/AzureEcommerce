@@ -9,7 +9,25 @@ on:
 env:
   DATABASE_URL: postgresql://postgres:postgres@localhost:5432/azurehijabs
   DIRECT_URL: postgresql://postgres:postgres@localhost:5432/azurehijabs
-  AUTH_SECRET: ci-secret-at-least-32-characters-long
+  AUTH_SECRET: ci-secret-at-least-32-characters-long-0000
+  APP_URL: http://localhost:3000
+  RAZORPAY_KEY_ID: rzp_test_ci_placeholder
+  RAZORPAY_KEY_SECRET: ci_placeholder
+  RAZORPAY_WEBHOOK_SECRET: ci_placeholder
+  NEXT_PUBLIC_RAZORPAY_KEY_ID: rzp_test_ci_placeholder
+  # A syntactically valid but fake key — some SDKs (Resend) throw at
+  # construction time on a missing key, and that module is imported
+  # transitively by pages the build prerenders. It's never called for real
+  # in CI (see src/lib/rate-limit.ts's fail-open and email.ts's try/catch).
+  RESEND_API_KEY: re_ci_placeholder
+  EMAIL_FROM: "AzureHijabs <orders@azurehijabs.com>"
+  R2_ACCOUNT_ID: ci_placeholder
+  R2_ACCESS_KEY_ID: ci_placeholder
+  R2_SECRET_ACCESS_KEY: ci_placeholder
+  R2_BUCKET: ci_placeholder
+  R2_PUBLIC_URL: https://cdn.example.com
+  UPSTASH_REDIS_REST_URL: https://ci-placeholder.upstash.io
+  UPSTASH_REDIS_REST_TOKEN: ci_placeholder
   SKIP_ENV_VALIDATION: "1"
 
 jobs:
@@ -57,8 +75,29 @@ jobs:
       - name: Apply migrations
         run: npx prisma migrate deploy
 
+      - name: Seed database
+        run: npm run db:seed
+
       - name: Unit tests
         run: npm run test
 
       - name: Build
         run: npm run build
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Start dev server
+        run: npm run dev &
+
+      - name: Wait for dev server
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3000/api/health && exit 0
+            sleep 2
+          done
+          echo "Dev server did not become healthy in time" >&2
+          exit 1
+
+      - name: E2E tests
+        run: npm run test:e2e

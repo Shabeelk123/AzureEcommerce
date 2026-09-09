@@ -10,14 +10,14 @@ handling, no float arithmetic on money, and tests that actually cover the money 
 
 **Decisions locked with the user:**
 
-| Area | Decision |
-|---|---|
-| Scope | Full storefront + full admin panel. **Lean v1** — no reviews, wishlist, blog, GST invoices, or shipping-zone engine. |
-| Frontend | Next.js App Router, TypeScript strict, Tailwind v4, shadcn/ui |
-| Database | Postgres on **Neon** (serverless), **Prisma** ORM with migrations |
-| Hosting | **Railway / Render** (Next.js `standalone` in Docker) + **Neon** Postgres |
-| Auth | **Email + password**, argon2 hashing, JWT session in an httpOnly cookie, role-based admin, guest checkout preserved |
-| Payments | **Razorpay** (Orders API + hosted Checkout + webhooks), INR |
+| Area     | Decision                                                                                                             |
+| -------- | -------------------------------------------------------------------------------------------------------------------- |
+| Scope    | Full storefront + full admin panel. **Lean v1** — no reviews, wishlist, blog, GST invoices, or shipping-zone engine. |
+| Frontend | Next.js App Router, TypeScript strict, Tailwind v4, shadcn/ui                                                        |
+| Database | Postgres on **Neon** (serverless), **Prisma** ORM with migrations                                                    |
+| Hosting  | **Railway / Render** (Next.js `standalone` in Docker) + **Neon** Postgres                                            |
+| Auth     | **Email + password**, argon2 hashing, JWT session in an httpOnly cookie, role-based admin, guest checkout preserved  |
+| Payments | **Razorpay** (Orders API + hosted Checkout + webhooks), INR                                                          |
 
 **Environment:** Node v20.19.4, npm 10.8.2, git 2.42, Docker 29 available. Not yet a git repo.
 
@@ -49,7 +49,7 @@ These are the rules that separate this from a tutorial build. Every phase below 
    an unvalidated route handler.
 5. **Inventory decrements inside the same transaction** that marks the order paid, with a
    conditional update (`WHERE stock >= qty`) so concurrent buyers cannot oversell.
-6. **Admin access is enforced in middleware *and* re-checked in every admin server action.**
+6. **Admin access is enforced in middleware _and_ re-checked in every admin server action.**
    Middleware alone is not an authorization boundary.
 
 ### Data model (`prisma/schema.prisma`)
@@ -140,7 +140,7 @@ tests/          unit/ (vitest)  e2e/ (playwright)
    every line from the DB, validate the coupon, compute shipping, create `Order(PENDING)` +
    `OrderItem[]` in a transaction, then call Razorpay Orders API with `amount = totalPaise`,
    `receipt = orderNumber`, `notes = { orderId }`. Persist `razorpayOrderId`.
-2. **Pay** — client opens Razorpay Checkout with the order id and the *public* key only.
+2. **Pay** — client opens Razorpay Checkout with the order id and the _public_ key only.
 3. **Callback** — browser posts `razorpay_payment_id/order_id/signature` to a server action
    that verifies `HMAC_SHA256(order_id + "|" + payment_id, KEY_SECRET)`. On success it calls
    `fulfilOrder()` and redirects to the success page. On failure → retry page.
@@ -161,15 +161,15 @@ before fulfilment — a forged-but-signed event for another merchant order must 
 
 ### Third-party services to provision
 
-| Purpose | Service | Env vars |
-|---|---|---|
-| Database | Neon Postgres | `DATABASE_URL` (pooled), `DIRECT_URL` (migrations) |
-| Payments | Razorpay | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `NEXT_PUBLIC_RAZORPAY_KEY_ID` |
-| Auth | Own JWT sessions (argon2) | `AUTH_SECRET`, `APP_URL` |
-| Email | Resend + react-email | `RESEND_API_KEY`, `EMAIL_FROM` |
-| Images | Cloudflare R2 (S3 API) | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_PUBLIC_URL` |
-| Rate limit | Upstash Redis | `UPSTASH_REDIS_REST_URL/TOKEN` |
-| Errors | Sentry | `SENTRY_DSN` |
+| Purpose    | Service                   | Env vars                                                                                           |
+| ---------- | ------------------------- | -------------------------------------------------------------------------------------------------- |
+| Database   | Neon Postgres             | `DATABASE_URL` (pooled), `DIRECT_URL` (migrations)                                                 |
+| Payments   | Razorpay                  | `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `NEXT_PUBLIC_RAZORPAY_KEY_ID` |
+| Auth       | Own JWT sessions (argon2) | `AUTH_SECRET`, `APP_URL`                                                                           |
+| Email      | Resend + react-email      | `RESEND_API_KEY`, `EMAIL_FROM`                                                                     |
+| Images     | Cloudflare R2 (S3 API)    | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_PUBLIC_URL`          |
+| Rate limit | Upstash Redis             | `UPSTASH_REDIS_REST_URL/TOKEN`                                                                     |
+| Errors     | Sentry                    | `SENTRY_DSN`                                                                                       |
 
 All parsed once through `src/env.ts` (`@t3-oss/env-nextjs` + Zod) so a missing var fails the
 build, not a customer's checkout.
@@ -181,6 +181,7 @@ build, not a customer's checkout.
 Each phase ends in a working, committed, type-checking state.
 
 ### Phase 0 — Foundation
+
 `git init`; `create-next-app` (TypeScript, App Router, Tailwind v4, src dir, ESLint);
 add Prettier + `eslint-config-next` strict, `tsconfig` with `strict: true` and
 `noUncheckedIndexedAccess`; init shadcn/ui; add `src/env.ts`, `.env.example`,
@@ -189,6 +190,7 @@ using Next.js `output: "standalone"` for Railway/Render, with `/api/health` as t
 GitHub Actions CI running typecheck → lint → unit tests → build.
 
 ### Phase 1 — Data layer
+
 Full `prisma/schema.prisma` as above; `src/lib/prisma.ts` singleton (globalThis guard for
 HMR, `@prisma/adapter-neon` for serverless pooling); first migration; `prisma/seed.ts` with
 ~12 realistic hijab products (chiffon, jersey, georgette, modal, satin — multiple colorways),
@@ -196,6 +198,7 @@ categories, collections, a coupon, and an admin user; `src/lib/money.ts` with
 `formatINR`, `rupeesToPaise`, `paiseToRupees` + unit tests.
 
 ### Phase 2 — Auth & accounts
+
 Hand-rolled, deliberately conventional: **argon2id** password hashing (`@node-rs/argon2`);
 signup → emailed verification link; login issues a short-lived (15 min) **access JWT** and a
 long-lived opaque **refresh token**, both `httpOnly; Secure; SameSite=Lax`, with the refresh
@@ -207,6 +210,7 @@ exports `requireUser()` / `requireAdmin()`, called inside **every** protected se
 middleware is UX, the guard is the security boundary. Then account profile + address book CRUD.
 
 ### Phase 3 — Catalog storefront
+
 Product listing with server-side filtering & pagination via searchParams (category, color,
 fabric, price range, sort) — filters live in the URL so they're shareable and cacheable.
 Product detail page with variant selector (color swatches × size), image gallery with
@@ -216,12 +220,14 @@ ISR via `unstable_cache` + tag-based revalidation on admin writes. Postgres full
 needed at this scale. JSON-LD `Product` schema, `generateMetadata`, OG images, `sitemap.ts`.
 
 ### Phase 4 — Cart
+
 Server-persisted cart: `sessionToken` in an httpOnly cookie for guests, `userId` when signed
 in, **merged on login** (union of items, quantities capped at stock). Optimistic add/update/
 remove via server actions + `useOptimistic`. Cart drawer + full cart page. Stock re-validated
 on every read so a cart never shows a purchasable out-of-stock line.
 
 ### Phase 5 — Checkout & Razorpay
+
 Address form (Zod: 6-digit pincode, 10-digit Indian mobile), saved-address picker, coupon
 application, order summary with flat shipping + free-shipping threshold from settings.
 `placeOrder` action, Razorpay Checkout script loaded via `next/script`, callback verification,
@@ -229,12 +235,14 @@ webhook route, `fulfilOrder()`, success page, retry-payment path for `PENDING` o
 Rate limiting on `placeOrder` and OTP requests via Upstash.
 
 ### Phase 6 — Orders & transactional email
+
 Customer order history + detail with a status timeline; react-email templates (order
 confirmation, shipped, cancelled, refunded) sent via Resend; admin order detail with status
 transitions, tracking number entry, cancel, and Razorpay refund (full/partial) writing a
 `Refund` row.
 
 ### Phase 7 — Admin panel
+
 Dashboard (revenue/orders/AOV over selectable range, low-stock list, recent orders);
 product CRUD with a variant matrix editor and drag-reorder image uploads to R2 via presigned
 PUT URLs (the browser uploads straight to R2; the server only signs and records);
@@ -243,6 +251,7 @@ flat rate, free-shipping threshold, store contact); `AuditLog` written on every 
 mutation. Every admin action re-asserts `requireAdmin()`.
 
 ### Phase 8 — Hardening & polish
+
 Security headers + CSP in `next.config.ts` (allowing `checkout.razorpay.com`), CSRF-safe
 actions, `robots.ts`, 404/500 pages, `loading.tsx` skeletons and `error.tsx` boundaries per
 route group, accessibility pass (keyboard nav, focus rings, labelled swatches, contrast),
@@ -254,6 +263,7 @@ runbook, and a brand pass on the azure palette (design tokens in `globals.css`).
 ## Verification
 
 **Automated**
+
 - `npm run typecheck && npm run lint` — clean, zero `any` in `src/`.
 - `npm run test` (Vitest): money helpers, coupon math, shipping calc, cart merge logic,
   Razorpay signature verification (valid/invalid/tampered), and `fulfilOrder()` idempotency —
@@ -266,6 +276,7 @@ runbook, and a brand pass on the azure palette (design tokens in `globals.css`).
 - CI runs all of the above on every push.
 
 **Manual, before go-live**
+
 1. `docker compose up -d && npx prisma migrate dev && npx prisma db seed && npm run dev`.
 2. Pay with Razorpay test cards (success, failure, and a card that requires 3-D Secure).
 3. Replay a captured webhook twice with `razorpay` test events (or curl with a computed
