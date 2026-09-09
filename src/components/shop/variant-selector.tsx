@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { useAction } from "next-safe-action/hooks";
+import { addToCart } from "@/actions/cart";
 import { formatINR } from "@/lib/money";
 import { Button } from "@/components/ui/button";
 
@@ -28,6 +31,18 @@ export function VariantSelector({
     () => [...new Map(variants.map((v) => [v.colorName, v])).values()],
     [variants],
   );
+  const router = useRouter();
+  const addAction = useAction(addToCart, {
+    onSuccess: () => {
+      toast.success("Added to cart.");
+      router.refresh(); // updates the header badge and any open cart drawer
+    },
+    onError: ({ error }) => {
+      toast.error(error.serverError ?? "Couldn't add this to your cart.");
+      router.refresh(); // if the server capped the quantity, reflect that
+    },
+  });
+
   const [colorName, setColorName] = useState(colors[0]?.colorName ?? "");
   const sizesForColor = variants.filter((v) => v.colorName === colorName);
   // More than one *distinct* size, not just "some size is set" — every
@@ -123,14 +138,12 @@ export function VariantSelector({
       <Button
         size="lg"
         className="w-full"
-        disabled={stock === 0}
+        disabled={stock === 0 || !selected || addAction.isExecuting}
         onClick={() =>
-          toast.info(
-            "Cart is coming in the next build phase — you can't add to cart yet.",
-          )
+          selected && addAction.execute({ variantId: selected.id, quantity: 1 })
         }
       >
-        {stock === 0 ? "Out of stock" : "Add to cart"}
+        {stock === 0 ? "Out of stock" : addAction.isExecuting ? "Adding…" : "Add to cart"}
       </Button>
     </div>
   );

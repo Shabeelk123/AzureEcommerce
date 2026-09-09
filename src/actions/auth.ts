@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { signAccessToken } from "@/lib/auth/jwt";
 import { createSessionFamily, revokeAllForUser, revokeByToken } from "@/lib/auth/session";
+import { mergeGuestCartIntoUser } from "@/lib/cart";
 import {
   clearAuthCookies,
   getRefreshTokenCookie,
@@ -59,6 +60,10 @@ async function establishSession(
   });
   await setAccessTokenCookie(accessToken);
   await setRefreshTokenCookie(refreshToken, expiresAt);
+  // A single integration point for both signup and login: whatever a
+  // guest added to their cart before creating an account or signing in
+  // shouldn't vanish the moment they do.
+  await mergeGuestCartIntoUser(userId);
 }
 
 export async function signup(

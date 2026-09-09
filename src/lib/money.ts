@@ -53,3 +53,15 @@ export function applyPercentDiscount(amountPaise: number, percent: number): numb
   }
   return Math.floor((amountPaise * percent) / 100);
 }
+
+/**
+ * A variant's effective price: its own override if set, else the parent
+ * product's base price. This one rule is duplicated across the product
+ * card, variant selector, and cart — centralized here so it can't drift.
+ */
+export function resolveVariantPricePaise(
+  variant: { pricePaise: number | null },
+  product: { basePricePaise: number },
+): number {
+  return variant.pricePaise ?? product.basePricePaise;
+}

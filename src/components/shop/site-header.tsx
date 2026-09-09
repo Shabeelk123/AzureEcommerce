@@ -5,6 +5,9 @@ import { getCategories } from "@/lib/catalog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
+import { CartSheet, CartContentsSkeleton } from "@/components/cart/cart-sheet";
+import { CartBadge, CartBadgeFallback } from "@/components/cart/cart-badge";
+import { CartContents } from "@/components/cart/cart-contents";
 
 async function NavLinks({ className }: { className?: string }) {
   const categories = await getCategories();
@@ -81,6 +84,17 @@ export function SiteHeader() {
               <User className="h-5 w-5" />
             </Link>
           </Button>
+          <CartSheet
+            trigger={
+              <Suspense fallback={<CartBadgeFallback />}>
+                <CartBadge />
+              </Suspense>
+            }
+          >
+            <Suspense fallback={<CartContentsSkeleton />}>
+              <CartContents compact />
+            </Suspense>
+          </CartSheet>
         </div>
       </div>
     </header>
