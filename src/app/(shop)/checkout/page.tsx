@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getCart } from "@/lib/cart";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { prisma } from "@/lib/prisma";
+import { getSettings } from "@/lib/settings";
 import { CheckoutForm } from "@/components/checkout/checkout-form";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -38,7 +39,7 @@ async function CheckoutContent() {
     );
   }
 
-  const [user, savedAddresses] = await Promise.all([
+  const [user, savedAddresses, settings] = await Promise.all([
     sessionUser
       ? prisma.user.findUnique({ where: { id: sessionUser.id }, select: { email: true } })
       : null,
@@ -48,6 +49,7 @@ async function CheckoutContent() {
           orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
         })
       : Promise.resolve([]),
+    getSettings(),
   ]);
 
   return (
@@ -57,6 +59,8 @@ async function CheckoutContent() {
       savedAddresses={savedAddresses}
       defaultEmail={user?.email}
       razorpayKeyId={env.NEXT_PUBLIC_RAZORPAY_KEY_ID}
+      shippingFlatPaise={settings.shippingFlatPaise}
+      freeShippingThresholdPaise={settings.freeShippingThresholdPaise}
     />
   );
 }

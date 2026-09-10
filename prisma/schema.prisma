@@ -437,6 +437,23 @@ model WebhookEvent {
 }
 
 // ---------------------------------------------------------------------------
+// Store settings (singleton)
+// ---------------------------------------------------------------------------
+
+// One row, id fixed to "singleton" — read/written via src/lib/settings.ts,
+// never through a findMany. Replaces the hardcoded constants that used to
+// live directly in src/lib/shipping.ts.
+model Settings {
+  id                        String   @id @default("singleton")
+  shippingFlatPaise         Int      @default(7900)
+  freeShippingThresholdPaise Int     @default(99900)
+  storeName                 String   @default("AzureHijabs")
+  supportEmail              String   @default("support@azurehijabs.com")
+  supportPhone              String?
+  updatedAt                 DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
 // Admin audit trail
 // ---------------------------------------------------------------------------
 

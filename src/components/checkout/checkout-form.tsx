@@ -13,7 +13,6 @@ import {
   applyCouponAction,
 } from "@/actions/checkout";
 import { placeOrderSchema, type PlaceOrderFormInput } from "@/lib/validators/checkout";
-import { calculateShippingPaise } from "@/lib/shipping";
 import { formatINR } from "@/lib/money";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,12 +40,19 @@ export function CheckoutForm({
   savedAddresses,
   defaultEmail,
   razorpayKeyId,
+  shippingFlatPaise,
+  freeShippingThresholdPaise,
 }: {
   lines: CartLine[];
   subtotalPaise: number;
   savedAddresses: SavedAddress[];
   defaultEmail?: string;
   razorpayKeyId: string;
+  // Display-only estimate passed down from the server (src/lib/settings.ts)
+  // — placeOrder() always recomputes the authoritative shipping cost
+  // server-side, same as it does for pricing and discounts.
+  shippingFlatPaise: number;
+  freeShippingThresholdPaise: number;
 }) {
   const router = useRouter();
   const [selectedAddressId, setSelectedAddressId] = useState<string>(
@@ -191,7 +197,8 @@ export function CheckoutForm({
     new window.Razorpay(options).open();
   }
 
-  const shippingPaise = calculateShippingPaise(subtotalPaise);
+  const shippingPaise =
+    subtotalPaise >= freeShippingThresholdPaise ? 0 : shippingFlatPaise;
   const discountPaise = appliedDiscount?.discountPaise ?? 0;
   const totalPaise = subtotalPaise - discountPaise + shippingPaise;
 

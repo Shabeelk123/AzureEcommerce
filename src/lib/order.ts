@@ -97,7 +97,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
     couponCode = result.coupon.code;
   }
 
-  const shippingPaise = calculateShippingPaise(cart.subtotalPaise);
+  const shippingPaise = await calculateShippingPaise(cart.subtotalPaise);
   const totalPaise = cart.subtotalPaise - discountPaise + shippingPaise;
   if (totalPaise <= 0) {
     return { ok: false, reason: "Order total must be greater than zero." };

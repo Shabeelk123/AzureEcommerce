@@ -12,11 +12,29 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           <Link href="/admin" className="text-stone-300 hover:text-white">
             Dashboard
           </Link>
-          <span className="cursor-not-allowed text-stone-600" title="Coming soon">
+          <Link href="/admin/products" className="text-stone-300 hover:text-white">
             Products
-          </span>
+          </Link>
+          <Link href="/admin/inventory" className="text-stone-300 hover:text-white">
+            Inventory
+          </Link>
+          <Link href="/admin/categories" className="text-stone-300 hover:text-white">
+            Categories
+          </Link>
+          <Link href="/admin/collections" className="text-stone-300 hover:text-white">
+            Collections
+          </Link>
+          <Link href="/admin/coupons" className="text-stone-300 hover:text-white">
+            Coupons
+          </Link>
           <Link href="/admin/orders" className="text-stone-300 hover:text-white">
             Orders
+          </Link>
+          <Link href="/admin/customers" className="text-stone-300 hover:text-white">
+            Customers
+          </Link>
+          <Link href="/admin/settings" className="text-stone-300 hover:text-white">
+            Settings
           </Link>
         </nav>
         <form action={logout} className="mt-8">
