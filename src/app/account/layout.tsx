@@ -24,9 +24,9 @@ export default function AccountLayout({ children }: { children: ReactNode }) {
           <Link href="/account/addresses" className="text-stone-700 hover:text-stone-900">
             Addresses
           </Link>
-          <span className="cursor-not-allowed text-stone-400" title="Coming soon">
+          <Link href="/account/orders" className="text-stone-700 hover:text-stone-900">
             Orders
-          </span>
+          </Link>
         </nav>
         <form action={logout} className="mt-6 hidden sm:block">
           <button

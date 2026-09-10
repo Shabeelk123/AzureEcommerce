@@ -70,3 +70,23 @@ export async function createRazorpayOrder(params: {
     notes: params.notes,
   });
 }
+
+/**
+ * Initiates a refund against a captured payment. `amountPaise` omitted
+ * means a full refund. This only *starts* the refund — Razorpay's
+ * response status is 'pending' until it actually settles, confirmed
+ * asynchronously by the `refund.processed` webhook (see
+ * src/app/api/webhooks/razorpay/route.ts), which is what actually flips
+ * our Payment/Order status. Never trust this call's return value alone
+ * for "the refund happened".
+ */
+export async function createRazorpayRefund(params: {
+  razorpayPaymentId: string;
+  amountPaise?: number;
+  notes?: Record<string, string>;
+}) {
+  return razorpay.payments.refund(params.razorpayPaymentId, {
+    amount: params.amountPaise,
+    notes: params.notes,
+  });
+}

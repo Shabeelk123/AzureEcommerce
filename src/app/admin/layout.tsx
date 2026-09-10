@@ -15,9 +15,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           <span className="cursor-not-allowed text-stone-600" title="Coming soon">
             Products
           </span>
-          <span className="cursor-not-allowed text-stone-600" title="Coming soon">
+          <Link href="/admin/orders" className="text-stone-300 hover:text-white">
             Orders
-          </span>
+          </Link>
         </nav>
         <form action={logout} className="mt-8">
           <button

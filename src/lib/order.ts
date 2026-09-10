@@ -5,9 +5,31 @@ import { prisma } from "@/lib/prisma";
 import { getCart } from "@/lib/cart";
 import { validateCoupon } from "@/lib/coupon";
 import { calculateShippingPaise } from "@/lib/shipping";
-import { createRazorpayOrder } from "@/lib/razorpay";
-import { sendOrderConfirmationEmail } from "@/lib/email";
-import type { Prisma } from "@/generated/prisma/client";
+import { createRazorpayOrder, createRazorpayRefund } from "@/lib/razorpay";
+import {
+  sendOrderCancelledEmail,
+  sendOrderConfirmationEmail,
+  sendOrderShippedEmail,
+  sendRefundInitiatedEmail,
+} from "@/lib/email";
+import type { OrderStatus, Prisma } from "@/generated/prisma/client";
+
+/**
+ * Runs `task` after the response is sent (next/server's `after()`), which
+ * requires an active Server Action / Route Handler request scope and
+ * throws a hard synchronous error without one. The order mutation this
+ * follows has already committed by the time we get here, so a missing
+ * request scope (a script, a test, or any future caller) must never
+ * surface as a failure of the mutation itself — fall back to firing the
+ * task without after()'s guarantees instead.
+ */
+function runAfterResponse(task: () => Promise<void>): void {
+  try {
+    after(task);
+  } catch {
+    void task();
+  }
+}
 
 async function generateOrderNumber(): Promise<string> {
   const year = new Date().getFullYear();
@@ -286,7 +308,7 @@ export async function fulfilOrder(input: FulfilOrderInput): Promise<void> {
     console.error("[order] revalidateTag failed", error);
   }
 
-  const sendConfirmation = async () => {
+  runAfterResponse(async () => {
     try {
       const order = await prisma.order.findUnique({
         where: { id: claimed },
@@ -296,15 +318,7 @@ export async function fulfilOrder(input: FulfilOrderInput): Promise<void> {
     } catch (error) {
       console.error("[order] failed to send confirmation email", error);
     }
-  };
-  try {
-    after(sendConfirmation);
-  } catch {
-    // No request scope available (e.g. called from a script or test) —
-    // fall back to firing it without the after() guarantees rather than
-    // dropping the email entirely.
-    void sendConfirmation();
-  }
+  });
 }
 
 /**
@@ -324,5 +338,238 @@ export async function getOrderById(id: string, userId: string | null) {
   return prisma.order.findFirst({
     where: { id, OR: [{ userId: userId ?? "__no_session__" }, { userId: null }] },
     include: { items: true },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Order history (customer + admin)
+// ---------------------------------------------------------------------------
+
+/** A logged-in shopper's own order history — strict ownership, no guest fallback. */
+export async function getOrdersForUser(userId: string) {
+  return prisma.order.findMany({
+    where: { userId },
+    orderBy: { placedAt: "desc" },
+    include: { items: true },
+  });
+}
+
+export async function getOrderForCustomer(orderId: string, userId: string) {
+  return prisma.order.findFirst({
+    where: { id: orderId, userId },
+    include: { items: true, payments: { include: { refunds: true } } },
+  });
+}
+
+export type AdminOrderFilters = {
+  status?: OrderStatus;
+  search?: string; // matches orderNumber or email
+  page?: number;
+};
+
+const ADMIN_PAGE_SIZE = 20;
+
+export async function getOrdersForAdmin(filters: AdminOrderFilters = {}) {
+  const page = Math.max(1, filters.page ?? 1);
+  const where: Prisma.OrderWhereInput = {
+    ...(filters.status ? { status: filters.status } : {}),
+    ...(filters.search
+      ? {
+          OR: [
+            { orderNumber: { contains: filters.search, mode: "insensitive" } },
+            { email: { contains: filters.search, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+  };
+
+  const [orders, total] = await Promise.all([
+    prisma.order.findMany({
+      where,
+      orderBy: { placedAt: "desc" },
+      skip: (page - 1) * ADMIN_PAGE_SIZE,
+      take: ADMIN_PAGE_SIZE,
+      include: { items: true },
+    }),
+    prisma.order.count({ where }),
+  ]);
+
+  return { orders, total, page, pageCount: Math.max(1, Math.ceil(total / ADMIN_PAGE_SIZE)) };
+}
+
+/** No ownership restriction — admin sees every order. */
+export async function getOrderForAdmin(orderId: string) {
+  return prisma.order.findUnique({
+    where: { id: orderId },
+    include: { items: true, payments: { include: { refunds: true } } },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Admin order management
+// ---------------------------------------------------------------------------
+
+export class OrderActionError extends Error {}
+
+// What an admin can explicitly set via the status dropdown. PENDING and
+// PAID are system-managed (only fulfilOrder sets PAID); REFUNDED is only
+// ever set by the refund.processed webhook once Razorpay confirms it —
+// never optimistically by an admin action.
+const ADMIN_SETTABLE_STATUSES = ["PACKED", "SHIPPED", "DELIVERED", "CANCELLED"] as const;
+type AdminSettableStatus = (typeof ADMIN_SETTABLE_STATUSES)[number];
+
+// Which current statuses a given target may be reached from. Anything not
+// listed as a source is rejected — this is enforced server-side inside the
+// action, not just left to the UI only offering "sensible" options.
+const ALLOWED_FROM: Record<AdminSettableStatus, OrderStatus[]> = {
+  PACKED: ["PAID"],
+  SHIPPED: ["PAID", "PACKED"],
+  DELIVERED: ["SHIPPED"],
+  // Once shipped, "cancel" no longer makes sense — that's a return/refund
+  // handled through issueRefund instead, not a status rollback.
+  CANCELLED: ["PENDING", "PAID", "PACKED"],
+};
+
+export function isAdminSettableStatus(status: string): status is AdminSettableStatus {
+  return (ADMIN_SETTABLE_STATUSES as readonly string[]).includes(status);
+}
+
+/** For a plain status change (PACKED/DELIVERED) — SHIPPED and CANCELLED go through their own functions below, which also handle side effects. */
+export async function updateOrderStatus(
+  orderId: string,
+  target: "PACKED" | "DELIVERED",
+): Promise<void> {
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order) throw new OrderActionError("Order not found.");
+  if (!ALLOWED_FROM[target].includes(order.status)) {
+    throw new OrderActionError(`Can't mark a ${order.status} order as ${target}.`);
+  }
+
+  await prisma.order.update({
+    where: { id: orderId },
+    data: {
+      status: target,
+      ...(target === "PACKED" ? { packedAt: new Date() } : {}),
+      ...(target === "DELIVERED" ? { deliveredAt: new Date() } : {}),
+    },
+  });
+}
+
+export async function markOrderShipped(
+  orderId: string,
+  tracking: { trackingNumber: string; carrier: string },
+): Promise<void> {
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order) throw new OrderActionError("Order not found.");
+  if (!ALLOWED_FROM.SHIPPED.includes(order.status)) {
+    throw new OrderActionError(`Can't mark a ${order.status} order as SHIPPED.`);
+  }
+
+  await prisma.order.update({
+    where: { id: orderId },
+    data: {
+      status: "SHIPPED",
+      shippedAt: new Date(),
+      trackingNumber: tracking.trackingNumber,
+      carrier: tracking.carrier,
+    },
+  });
+
+  runAfterResponse(async () => {
+    try {
+      await sendOrderShippedEmail({
+        email: order.email,
+        orderNumber: order.orderNumber,
+        trackingNumber: tracking.trackingNumber,
+        carrier: tracking.carrier,
+      });
+    } catch (error) {
+      console.error("[order] failed to send shipped email", error);
+    }
+  });
+}
+
+export async function cancelOrder(orderId: string, reason?: string): Promise<void> {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { payments: true },
+  });
+  if (!order) throw new OrderActionError("Order not found.");
+  if (!ALLOWED_FROM.CANCELLED.includes(order.status)) {
+    throw new OrderActionError(`Can't cancel a ${order.status} order.`);
+  }
+
+  const capturedPayment = order.payments.find((p) => p.status === "CAPTURED");
+
+  await prisma.order.update({
+    where: { id: orderId },
+    data: {
+      status: "CANCELLED",
+      cancelledAt: new Date(),
+      notes: reason ? `Cancelled: ${reason}` : order.notes,
+    },
+  });
+
+  // Cancelling a paid order implies a full refund — this is the same
+  // Razorpay call issueRefund makes below, just triggered automatically
+  // rather than by a separate admin click.
+  if (capturedPayment) {
+    try {
+      await createRazorpayRefund({
+        razorpayPaymentId: capturedPayment.razorpayPaymentId,
+        notes: { orderId: order.id, reason: reason ?? "Order cancelled" },
+      });
+    } catch (error) {
+      console.error("[order] auto-refund on cancel failed — needs manual follow-up", error);
+    }
+  }
+
+  runAfterResponse(async () => {
+    try {
+      await sendOrderCancelledEmail({ email: order.email, orderNumber: order.orderNumber });
+    } catch (error) {
+      console.error("[order] failed to send cancellation email", error);
+    }
+  });
+}
+
+export async function issueRefund(
+  orderId: string,
+  options: { amountPaise?: number; reason?: string } = {},
+): Promise<void> {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { payments: true },
+  });
+  if (!order) throw new OrderActionError("Order not found.");
+
+  const capturedPayment = order.payments.find((p) => p.status === "CAPTURED");
+  if (!capturedPayment) {
+    throw new OrderActionError("This order has no captured payment to refund.");
+  }
+  if (options.amountPaise != null && options.amountPaise > capturedPayment.amountPaise) {
+    throw new OrderActionError("Refund amount can't exceed the captured payment.");
+  }
+
+  // Razorpay is the source of truth for whether this actually succeeds —
+  // this call only *starts* it. Payment/Order status update to REFUNDED /
+  // PARTIALLY_REFUNDED happens in the refund.processed webhook handler,
+  // not here.
+  await createRazorpayRefund({
+    razorpayPaymentId: capturedPayment.razorpayPaymentId,
+    amountPaise: options.amountPaise,
+    notes: options.reason ? { reason: options.reason } : undefined,
+  });
+
+  runAfterResponse(async () => {
+    try {
+      await sendRefundInitiatedEmail({
+        email: order.email,
+        orderNumber: order.orderNumber,
+        amountPaise: options.amountPaise ?? capturedPayment.amountPaise,
+      });
+    } catch (error) {
+      console.error("[order] failed to send refund-initiated email", error);
+    }
   });
 }

@@ -8,6 +8,9 @@ import {
   OrderConfirmationEmail,
   type OrderConfirmationItem,
 } from "@/emails/order-confirmation";
+import { OrderShippedEmail } from "@/emails/order-shipped";
+import { OrderCancelledEmail } from "@/emails/order-cancelled";
+import { RefundInitiatedEmail } from "@/emails/refund-initiated";
 
 const resend = new Resend(env.RESEND_API_KEY);
 const SEND_TIMEOUT_MS = 5000;
@@ -105,5 +108,73 @@ export async function sendOrderConfirmationEmail(order: {
   if (error) {
     console.error("[email] failed to send order confirmation email", error);
     throw new Error("Failed to send order confirmation email");
+  }
+}
+
+export async function sendOrderShippedEmail(params: {
+  email: string;
+  orderNumber: string;
+  trackingNumber: string;
+  carrier: string;
+}) {
+  const html = await render(
+    OrderShippedEmail({
+      orderNumber: params.orderNumber,
+      trackingNumber: params.trackingNumber,
+      carrier: params.carrier,
+    }),
+  );
+  const { error } = await withTimeout(
+    resend.emails.send({
+      from: env.EMAIL_FROM,
+      to: params.email,
+      subject: `Your order has shipped — ${params.orderNumber}`,
+      html,
+    }),
+    "sendOrderShippedEmail",
+  );
+  if (error) {
+    console.error("[email] failed to send shipped email", error);
+    throw new Error("Failed to send shipped email");
+  }
+}
+
+export async function sendOrderCancelledEmail(params: { email: string; orderNumber: string }) {
+  const html = await render(OrderCancelledEmail({ orderNumber: params.orderNumber }));
+  const { error } = await withTimeout(
+    resend.emails.send({
+      from: env.EMAIL_FROM,
+      to: params.email,
+      subject: `Order cancelled — ${params.orderNumber}`,
+      html,
+    }),
+    "sendOrderCancelledEmail",
+  );
+  if (error) {
+    console.error("[email] failed to send cancellation email", error);
+    throw new Error("Failed to send cancellation email");
+  }
+}
+
+export async function sendRefundInitiatedEmail(params: {
+  email: string;
+  orderNumber: string;
+  amountPaise: number;
+}) {
+  const html = await render(
+    RefundInitiatedEmail({ orderNumber: params.orderNumber, amountPaise: params.amountPaise }),
+  );
+  const { error } = await withTimeout(
+    resend.emails.send({
+      from: env.EMAIL_FROM,
+      to: params.email,
+      subject: `Refund initiated — ${params.orderNumber}`,
+      html,
+    }),
+    "sendRefundInitiatedEmail",
+  );
+  if (error) {
+    console.error("[email] failed to send refund-initiated email", error);
+    throw new Error("Failed to send refund-initiated email");
   }
 }

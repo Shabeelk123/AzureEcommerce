@@ -331,12 +331,21 @@ model Order {
 
   notes String?
 
+  // Set by an admin when packing/shipping — carrier is a free-text label
+  // (no carrier-API integration in v1), not validated against a fixed list.
+  trackingNumber String?
+  carrier        String?
+
   items    OrderItem[]
   payments Payment[]
 
-  placedAt  DateTime  @default(now())
-  paidAt    DateTime?
-  updatedAt DateTime  @updatedAt
+  placedAt    DateTime  @default(now())
+  paidAt      DateTime?
+  packedAt    DateTime?
+  shippedAt   DateTime?
+  deliveredAt DateTime?
+  cancelledAt DateTime?
+  updatedAt   DateTime  @updatedAt
 
   @@index([userId])
   @@index([status])
