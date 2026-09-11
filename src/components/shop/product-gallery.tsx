@@ -17,34 +17,36 @@ export function ProductGallery({
 
   if (!active) {
     return (
-      <div className="bg-muted text-muted-foreground flex aspect-4/5 items-center justify-center rounded-lg text-sm">
+      <div className="font-jakarta flex aspect-3/4 items-center justify-center rounded-xl bg-[#f1ede8] text-sm text-[#4d4545]">
         No image available
       </div>
     );
   }
 
   return (
-    <div>
-      <div className="bg-muted relative aspect-4/5 overflow-hidden rounded-lg">
+    <div className="flex flex-col gap-3">
+      <div className="group relative aspect-3/4 overflow-hidden rounded-xl bg-[#f1ede8] shadow-sm">
         <Image
           src={active.url}
           alt={active.alt || title}
           fill
           sizes="(min-width: 1024px) 50vw, 100vw"
-          className="object-cover"
+          className="object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105"
           priority
         />
       </div>
       {images.length > 1 && (
-        <div className="mt-3 grid grid-cols-5 gap-2">
+        <div className="grid grid-cols-4 gap-3">
           {images.map((image, index) => (
             <button
               key={image.url}
               type="button"
               onClick={() => setActiveIndex(index)}
               aria-label={`Show image ${index + 1}`}
-              className={`relative aspect-4/5 overflow-hidden rounded-md border-2 ${
-                index === activeIndex ? "border-primary" : "border-transparent"
+              className={`relative aspect-3/4 overflow-hidden rounded-lg shadow-sm transition-all duration-200 ${
+                index === activeIndex
+                  ? "ring-2 ring-[#090707]"
+                  : "opacity-80 hover:opacity-100"
               }`}
             >
               <Image src={image.url} alt="" fill sizes="10vw" className="object-cover" />

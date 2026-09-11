@@ -6,6 +6,7 @@ import { useAction } from "next-safe-action/hooks";
 import { toast } from "sonner";
 import {
   cancelOrderAction,
+  markCodCollectedAction,
   markShippedAction,
   refundOrderAction,
   updateOrderStatusAction,
@@ -13,16 +14,20 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatINR } from "@/lib/money";
-import type { OrderStatus } from "@/generated/prisma/enums";
+import type { OrderStatus, PaymentMethod } from "@/generated/prisma/enums";
 
 export function AdminOrderActions({
   orderId,
   status,
+  paymentMethod,
+  codCollectedAt,
   canRefund,
   refundableAmountPaise,
 }: {
   orderId: string;
   status: OrderStatus;
+  paymentMethod: PaymentMethod;
+  codCollectedAt: Date | null;
   canRefund: boolean;
   refundableAmountPaise: number;
 }) {
@@ -69,17 +74,24 @@ export function AdminOrderActions({
     },
     onError: ({ error }) => onError(error, "Couldn't issue refund."),
   });
+  const codCollectedAction = useAction(markCodCollectedAction, {
+    onSuccess: () => onSuccess("Cash collection recorded."),
+    onError: ({ error }) => onError(error, "Couldn't record cash collection."),
+  });
 
   const pending =
     statusAction.isExecuting ||
     shipAction.isExecuting ||
     cancelAction.isExecuting ||
-    refundAction.isExecuting;
+    refundAction.isExecuting ||
+    codCollectedAction.isExecuting;
 
   const canPack = status === "PAID";
   const canShip = status === "PAID" || status === "PACKED";
   const canDeliver = status === "SHIPPED";
   const canCancel = status === "PENDING" || status === "PAID" || status === "PACKED";
+  const canMarkCodCollected =
+    paymentMethod === "COD" && !codCollectedAt && status !== "CANCELLED";
 
   return (
     <div className="space-y-4 rounded-lg border p-5">
@@ -129,6 +141,16 @@ export function AdminOrderActions({
             onClick={() => setShowRefundForm((v) => !v)}
           >
             Issue refund
+          </Button>
+        )}
+        {canMarkCodCollected && (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={pending}
+            onClick={() => codCollectedAction.execute({ orderId })}
+          >
+            Mark cash collected
           </Button>
         )}
       </div>

@@ -1,5 +1,43 @@
 import type { NextConfig } from "next";
 
+// Not a nonce-based strict CSP (that needs a per-request nonce threaded
+// through proxy.ts into every <script>, a larger change) — this is the
+// pragmatic baseline: an explicit allowlist per directive, `unsafe-inline`
+// only where Next's own inline bootstrap/style injection requires it.
+// checkout.razorpay.com is allowed as a script source and a frame source
+// because Razorpay Checkout can render certain payment methods (e.g. some
+// bank redirects) in an iframe, not just its own popup.
+const CSP = [
+  "default-src 'self'",
+  // checkout.razorpay.com serves the Checkout bootstrap; cdn.razorpay.com
+  // serves bundles Checkout itself loads afterward (e.g. its risk-detection
+  // script) — found by actually opening Checkout under this CSP and
+  // watching for violations, not guessed from Razorpay's docs alone.
+  "script-src 'self' 'unsafe-inline' https://checkout.razorpay.com https://cdn.razorpay.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "img-src 'self' data: https:",
+  "font-src 'self' https://fonts.gstatic.com data:",
+  "connect-src 'self' https://api.razorpay.com https://checkout.razorpay.com https://lumberjack.razorpay.com",
+  "frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join("; ");
+
+const SECURITY_HEADERS = [
+  { key: "Content-Security-Policy", value: CSP },
+  // Redundant with frame-ancestors above for modern browsers, kept for
+  // the older browsers that only understand X-Frame-Options.
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Permissions-Policy",
+    value: "camera=(), microphone=(), geolocation=(), payment=(self \"https://checkout.razorpay.com\")",
+  },
+];
+
 const nextConfig: NextConfig = {
   // Minimal, self-contained production build for the Docker image (see
   // Dockerfile) — required for Railway/Render deployment.
@@ -30,7 +68,19 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "picsum.photos",
       },
+      // Stitch design-preview placeholder photography (AI-generated, not
+      // real product photos) used in the shop/home page restyle. Same
+      // "temporary until real product photos exist" status as picsum.photos
+      // above — drop once real photography is uploaded to R2.
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+      },
     ],
+  },
+
+  async headers() {
+    return [{ source: "/:path*", headers: SECURITY_HEADERS }];
   },
 };
 

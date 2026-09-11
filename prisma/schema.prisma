@@ -45,6 +45,7 @@ model User {
   addresses           Address[]
   carts               Cart[]
   orders              Order[]
+  wishlistItems       WishlistItem[]
   auditLogs           AuditLog[]
 
   createdAt DateTime @default(now())
@@ -163,8 +164,9 @@ model Product {
   seoDescription String?
   publishedAt    DateTime?
 
-  images   ProductImage[]
-  variants ProductVariant[]
+  images        ProductImage[]
+  variants      ProductVariant[]
+  wishlistItems WishlistItem[]
 
   // Postgres generated column (title/fabric/description, weighted A/B/C),
   // maintained by Postgres itself on every write — not by Prisma. Marking
@@ -252,6 +254,22 @@ model CartItem {
   @@unique([cartId, variantId])
 }
 
+// Logged-in accounts only — no guest wishlist (see cart's sessionToken
+// pattern for what that would look like if this ever needs it). Keyed on
+// Product, not a specific variant: "save this style", not "save this exact
+// color/size", matching how the heart icon reads on a product card.
+model WishlistItem {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+  @@index([userId])
+}
+
 // ---------------------------------------------------------------------------
 // Promotions
 // ---------------------------------------------------------------------------
@@ -292,6 +310,11 @@ enum OrderStatus {
   REFUNDED
 }
 
+enum PaymentMethod {
+  RAZORPAY
+  COD
+}
+
 model Order {
   id          String      @id @default(cuid())
   orderNumber String      @unique
@@ -322,6 +345,14 @@ model Order {
   billingAddress  Json
 
   razorpayOrderId String? @unique
+
+  // RAZORPAY orders are marked PAID by fulfilOrder() once Razorpay confirms
+  // payment. COD orders are marked PAID immediately at placement (there is
+  // no gateway to wait on) — for COD, PAID means "order confirmed, stock
+  // committed", not "cash in hand"; actual collection is tracked
+  // separately via codCollectedAt, set by an admin after delivery.
+  paymentMethod  PaymentMethod @default(RAZORPAY)
+  codCollectedAt DateTime?
 
   // Set when a webhook/callback fulfilled the order but a stock line
   // couldn't be fully decremented (oversold race). Payment was still taken;

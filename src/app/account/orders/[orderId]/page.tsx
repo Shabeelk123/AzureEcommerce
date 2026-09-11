@@ -45,6 +45,12 @@ async function OrderDetail({ params }: Props) {
         <OrderStatusBadge status={order.status} />
       </div>
 
+      {order.paymentMethod === "COD" && !order.codCollectedAt && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
+          Cash on Delivery — please keep {formatINR(order.totalPaise)} ready for the courier.
+        </div>
+      )}
+
       <div className="rounded-lg border p-5">
         <OrderTimeline status={order.status} />
       </div>

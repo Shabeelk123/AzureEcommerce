@@ -102,7 +102,14 @@ async function OrdersTable({ searchParams }: Props) {
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">{order.email}</td>
                 <td className="px-4 py-3">
-                  <OrderStatusBadge status={order.status} />
+                  <div className="flex items-center gap-1.5">
+                    {order.paymentMethod === "COD" && (
+                      <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-[11px] font-medium text-stone-700">
+                        COD
+                      </span>
+                    )}
+                    <OrderStatusBadge status={order.status} />
+                  </div>
                 </td>
                 <td className="px-4 py-3 text-right">{formatINR(order.totalPaise)}</td>
               </tr>

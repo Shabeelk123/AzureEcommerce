@@ -11,6 +11,7 @@ export const placeOrderSchema = z.object({
   state: z.string().trim().min(2, "State is required").max(100),
   pincode: pincodeSchema,
   couponCode: z.string().trim().max(40).optional().or(z.literal("")),
+  paymentMethod: z.enum(["RAZORPAY", "COD"]),
 });
 export type PlaceOrderFormInput = z.infer<typeof placeOrderSchema>;
 

@@ -1,5 +1,5 @@
 import "server-only";
-import { cacheTag } from "next/cache";
+import { cacheLife, cacheTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 
 const SETTINGS_ID = "singleton";
@@ -21,6 +21,12 @@ async function getSettingsUncached() {
 export async function getSettings() {
   "use cache";
   cacheTag("settings");
+  // Same "days" profile as src/lib/catalog.ts: admin saves invalidate this
+  // tag immediately (read-your-own-writes via invalidateTag in
+  // src/actions/admin/settings.ts), so a long passive revalidate window is
+  // safe — and matters here now that the header (src/components/shop/site-header.tsx)
+  // reads this on every shop page, not just checkout.
+  cacheLife("days");
   return getSettingsUncached();
 }
 

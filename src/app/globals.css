@@ -10,6 +10,12 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
+  /* Storefront-only editorial type pair (Stitch homepage design) — only
+     defined where src/app/(shop)/layout.tsx applies the next/font
+     `.variable` class names, so `font-playfair`/`font-jakarta` fall back to
+     plain serif/sans-serif anywhere else (e.g. admin) rather than erroring. */
+  --font-playfair: var(--font-playfair), serif;
+  --font-jakarta: var(--font-jakarta-sans), sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);

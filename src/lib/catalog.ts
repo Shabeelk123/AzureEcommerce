@@ -31,7 +31,7 @@ export type ProductFilters = {
 // no more. `variants` is trimmed to what's needed to render a color swatch
 // row and know whether *anything* is purchasable; the product page fetches
 // the full variant list separately.
-const productCardSelect = {
+export const productCardSelect = {
   id: true,
   slug: true,
   title: true,
@@ -177,6 +177,21 @@ export async function getCategories() {
   cacheLife("days");
 
   return prisma.category.findMany({ orderBy: { sortOrder: "asc" } });
+}
+
+/** Categories with a real count of their purchasable (ACTIVE, published)
+ * products — powers the shop page's category pill counts. */
+export async function getCategoriesWithProductCounts() {
+  "use cache";
+  cacheTag("categories", "products");
+  cacheLife("days");
+
+  return prisma.category.findMany({
+    orderBy: { sortOrder: "asc" },
+    include: {
+      _count: { select: { products: { where: { status: "ACTIVE", publishedAt: { not: null } } } } },
+    },
+  });
 }
 
 export async function getCategoryBySlug(slug: string) {

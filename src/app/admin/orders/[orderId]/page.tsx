@@ -47,7 +47,14 @@ async function OrderDetail({ params }: Props) {
           <h1 className="text-xl font-semibold text-stone-900">{order.orderNumber}</h1>
           <p className="text-sm text-muted-foreground">{order.email}</p>
         </div>
-        <OrderStatusBadge status={order.status} />
+        <div className="flex items-center gap-2">
+          {order.paymentMethod === "COD" && (
+            <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-700">
+              COD
+            </span>
+          )}
+          <OrderStatusBadge status={order.status} />
+        </div>
       </div>
 
       {order.needsReview && (
@@ -64,6 +71,8 @@ async function OrderDetail({ params }: Props) {
       <AdminOrderActions
         orderId={order.id}
         status={order.status}
+        paymentMethod={order.paymentMethod}
+        codCollectedAt={order.codCollectedAt}
         canRefund={canRefund}
         refundableAmountPaise={refundableAmountPaise}
       />
@@ -123,7 +132,20 @@ async function OrderDetail({ params }: Props) {
 
           <div className="rounded-lg border bg-white p-5 text-sm">
             <h2 className="mb-2 text-sm font-semibold">Payments</h2>
-            {order.payments.length === 0 ? (
+            {order.paymentMethod === "COD" ? (
+              <div className="flex items-center justify-between">
+                <span>Cash on Delivery</span>
+                {order.codCollectedAt ? (
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">
+                    Collected {formatINR(order.totalPaise)}
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
+                    Not yet collected
+                  </span>
+                )}
+              </div>
+            ) : order.payments.length === 0 ? (
               <p className="text-muted-foreground">No payment recorded yet.</p>
             ) : (
               <ul className="space-y-2">

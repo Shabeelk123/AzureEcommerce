@@ -57,16 +57,19 @@ export type PlaceOrderInput = AddressInput & {
   userId: string | null;
   email: string;
   couponCode?: string;
+  paymentMethod?: "RAZORPAY" | "COD";
 };
 
 export type PlaceOrderResult =
   | {
       ok: true;
+      method: "razorpay";
       orderId: string;
       orderNumber: string;
       razorpayOrderId: string;
       amountPaise: number;
     }
+  | { ok: true; method: "cod"; orderId: string; orderNumber: string }
   | { ok: false; reason: string };
 
 /**
@@ -115,6 +118,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
   } satisfies Prisma.InputJsonValue;
 
   const orderNumber = await generateOrderNumber();
+  const paymentMethod = input.paymentMethod ?? "RAZORPAY";
 
   const order = await prisma.order.create({
     data: {
@@ -123,6 +127,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
       email: input.email,
       phone: input.phone,
       status: "PENDING",
+      paymentMethod,
       subtotalPaise: cart.subtotalPaise,
       discountPaise,
       shippingPaise,
@@ -144,6 +149,15 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
       },
     },
   });
+
+  // COD has no gateway to wait on — the order is confirmed (stock
+  // committed) synchronously here, the same work fulfilOrder() does for a
+  // captured Razorpay payment, just without a Payment row since no money
+  // has actually changed hands yet.
+  if (paymentMethod === "COD") {
+    await confirmCodOrder(order.id);
+    return { ok: true, method: "cod", orderId: order.id, orderNumber };
+  }
 
   let razorpayOrder;
   try {
@@ -167,6 +181,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
 
   return {
     ok: true,
+    method: "razorpay",
     orderId: order.id,
     orderNumber,
     razorpayOrderId: razorpayOrder.id,
@@ -199,6 +214,79 @@ export type FulfilOrderInput = {
  * SERIALIZABLE transaction or explicit row lock needed; this is *why* the
  * claim happens as an UPDATE, not a SELECT-then-UPDATE.
  */
+type TxClient = Prisma.TransactionClient;
+type OrderWithItems = Prisma.OrderGetPayload<{ include: { items: true } }>;
+
+/**
+ * The "commit" side of fulfilment, shared by both the Razorpay path
+ * (fulfilOrder, below) and the COD path (confirmCodOrder) once each has
+ * already won its own PENDING -> PAID claim: decrement stock per line
+ * (flagging needsReview on a partial/failed decrement — money or a
+ * confirmed COD promise is already committed at this point, so an
+ * oversold line must never be silently dropped), increment coupon
+ * redemption, and clear the cart the order was placed from.
+ */
+async function commitOrderStockAndCart(tx: TxClient, order: OrderWithItems): Promise<void> {
+  let needsReview = false;
+  for (const item of order.items) {
+    if (!item.variantId) continue;
+    const decrement = await tx.productVariant.updateMany({
+      where: { id: item.variantId, stock: { gte: item.quantity } },
+      data: { stock: { decrement: item.quantity } },
+    });
+    if (decrement.count === 0) needsReview = true;
+  }
+
+  if (order.couponCode) {
+    await tx.coupon.update({
+      where: { code: order.couponCode },
+      data: { redemptionCount: { increment: 1 } },
+    });
+  }
+
+  if (needsReview) {
+    await tx.order.update({ where: { id: order.id }, data: { needsReview: true } });
+  }
+
+  if (order.cartId) {
+    await tx.cartItem.deleteMany({ where: { cartId: order.cartId } });
+  }
+}
+
+/**
+ * Shared post-commit side effects for both fulfilOrder and
+ * confirmCodOrder: the underlying mutation (payment captured / COD
+ * confirmed, stock decremented) has already succeeded by the time this
+ * runs, so a problem here must never appear to undo it. Both
+ * revalidateTag and after() require an active Next.js request scope
+ * (Server Action / Route Handler) and throw a hard error without one;
+ * these functions have no such requirement themselves (they're plain
+ * business logic, exercised directly by integration tests), so both calls
+ * are guarded rather than left to potentially fail the caller.
+ */
+function runPostFulfillmentSideEffects(orderId: string): void {
+  try {
+    // "minutes" (not the docs' recommended "max") because stock just
+    // changed — product pages should reflect it soon, not whenever the
+    // default catalog cache next happens to turn over.
+    revalidateTag("products", "minutes");
+  } catch (error) {
+    console.error("[order] revalidateTag failed", error);
+  }
+
+  runAfterResponse(async () => {
+    try {
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: { items: true },
+      });
+      if (order) await sendOrderConfirmationEmail(order);
+    } catch (error) {
+      console.error("[order] failed to send confirmation email", error);
+    }
+  });
+}
+
 export async function fulfilOrder(input: FulfilOrderInput): Promise<void> {
   const claimed = await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUnique({
@@ -261,64 +349,43 @@ export async function fulfilOrder(input: FulfilOrderInput): Promise<void> {
       throw error;
     }
 
-    let needsReview = false;
-    for (const item of order.items) {
-      if (!item.variantId) continue;
-      const decrement = await tx.productVariant.updateMany({
-        where: { id: item.variantId, stock: { gte: item.quantity } },
-        data: { stock: { decrement: item.quantity } },
-      });
-      if (decrement.count === 0) needsReview = true;
-    }
-
-    if (order.couponCode) {
-      await tx.coupon.update({
-        where: { code: order.couponCode },
-        data: { redemptionCount: { increment: 1 } },
-      });
-    }
-
-    if (needsReview) {
-      await tx.order.update({ where: { id: order.id }, data: { needsReview: true } });
-    }
-
-    if (order.cartId) {
-      await tx.cartItem.deleteMany({ where: { cartId: order.cartId } });
-    }
-
+    await commitOrderStockAndCart(tx, order);
     return order.id;
   });
 
   if (!claimed) return; // idempotent no-op — nothing new happened, nothing to react to
+  runPostFulfillmentSideEffects(claimed);
+}
 
-  // The payment is captured and stock is decremented at this point — that
-  // must never be undone by a problem with post-processing. Both
-  // revalidateTag and after() require an active Next.js request scope
-  // (Server Action / Route Handler) and throw a hard error without one;
-  // fulfilOrder itself has no such requirement (it's plain business
-  // logic, exercised directly by integration tests), so both calls are
-  // guarded rather than left to potentially fail this function after the
-  // real work already succeeded.
-  try {
-    // "minutes" (not the docs' recommended "max") because stock just
-    // changed — product pages should reflect it soon, not whenever the
-    // default catalog cache next happens to turn over.
-    revalidateTag("products", "minutes");
-  } catch (error) {
-    console.error("[order] revalidateTag failed", error);
-  }
+/**
+ * The COD equivalent of fulfilOrder — no gateway confirms payment, so
+ * there's nothing to verify beyond "this is really a COD order still
+ * awaiting confirmation." Uses the same atomic
+ * `UPDATE ... WHERE status = 'PENDING'` claim as fulfilOrder for the same
+ * reason: it's cheap, idempotent-by-construction insurance even though
+ * COD orders (unlike Razorpay's webhook+callback race) only have one
+ * caller today.
+ */
+export async function confirmCodOrder(orderId: string): Promise<void> {
+  const claimed = await prisma.$transaction(async (tx) => {
+    const order = await tx.order.findUnique({
+      where: { id: orderId },
+      include: { items: true },
+    });
+    if (!order || order.paymentMethod !== "COD") return null;
 
-  runAfterResponse(async () => {
-    try {
-      const order = await prisma.order.findUnique({
-        where: { id: claimed },
-        include: { items: true },
-      });
-      if (order) await sendOrderConfirmationEmail(order);
-    } catch (error) {
-      console.error("[order] failed to send confirmation email", error);
-    }
+    const claim = await tx.order.updateMany({
+      where: { id: order.id, status: "PENDING" },
+      data: { status: "PAID", paidAt: new Date() },
+    });
+    if (claim.count === 0) return null;
+
+    await commitOrderStockAndCart(tx, order);
+    return order.id;
   });
+
+  if (!claimed) return;
+  runPostFulfillmentSideEffects(claimed);
 }
 
 /**
@@ -571,5 +638,29 @@ export async function issueRefund(
     } catch (error) {
       console.error("[order] failed to send refund-initiated email", error);
     }
+  });
+}
+
+/**
+ * COD orders are marked PAID at placement (see confirmCodOrder) — that
+ * status means "confirmed, stock committed", not "cash in hand". This is
+ * the separate, explicit record of the cash actually being collected,
+ * set by an admin after delivery. There is deliberately no automatic path
+ * to this — unlike a Razorpay capture, no system on our side can observe
+ * a COD handoff happening.
+ */
+export async function markCodCollected(orderId: string): Promise<void> {
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order) throw new OrderActionError("Order not found.");
+  if (order.paymentMethod !== "COD") {
+    throw new OrderActionError("This order isn't a Cash on Delivery order.");
+  }
+  if (order.codCollectedAt) {
+    throw new OrderActionError("Cash has already been marked as collected for this order.");
+  }
+
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { codCollectedAt: new Date() },
   });
 }

@@ -32,8 +32,13 @@ type SeedProduct = {
 const CATEGORIES = [
   { slug: "everyday-hijabs", name: "Everyday Hijabs", sortOrder: 1 },
   { slug: "premium-hijabs", name: "Premium Hijabs", sortOrder: 2 },
-  { slug: "instant-hijabs", name: "Instant & Slip-On", sortOrder: 3 },
-  { slug: "underscarves", name: "Underscarves & Caps", sortOrder: 4 },
+  { slug: "underscarves", name: "Underscarves & Caps", sortOrder: 3 },
+  // Broadens the catalog beyond hijabs, matching the product-type spread a
+  // typical modest-fashion retailer carries (scarves/shawls and prayer
+  // wear alongside hijabs) — not the reference site's multi-vendor brand
+  // names, which don't apply to a single-brand store like this one.
+  { slug: "scarves-shawls", name: "Scarves & Shawls", sortOrder: 5 },
+  { slug: "prayer-wear", name: "Prayer Wear", sortOrder: 6 },
 ];
 
 const COLLECTIONS = [
@@ -120,7 +125,7 @@ const PRODUCTS: SeedProduct[] = [
     title: "Instant Slip-On Hijab",
     description:
       "No pins, no wrapping — a pre-styled, one-piece hijab that slips on in seconds. Built-in underscarve for full coverage, perfect for busy mornings.",
-    categorySlug: "instant-hijabs",
+    categorySlug: "everyday-hijabs",
     collectionSlugs: ["everyday-jersey"],
     fabric: "Cotton-Jersey Blend",
     careInstructions: "Machine wash cold, tumble dry low.",
@@ -218,7 +223,7 @@ const PRODUCTS: SeedProduct[] = [
     title: "Rib-Knit Instant Hijab",
     description:
       "A ribbed knit slip-on with extra stretch recovery — holds a close, sporty fit that won't loosen through the day.",
-    categorySlug: "instant-hijabs",
+    categorySlug: "everyday-hijabs",
     collectionSlugs: ["monsoon-modal"],
     fabric: "Rib-Knit Cotton Blend",
     careInstructions: "Machine wash cold, lay flat to dry.",
@@ -243,6 +248,86 @@ const PRODUCTS: SeedProduct[] = [
       { colorName: "Stone", colorHex: "#B9AF9E", stock: 20 },
       { colorName: "Clay", colorHex: "#A65D40", stock: 18 },
       { colorName: "Deep Teal", colorHex: "#1F4A4A", stock: 16 },
+    ],
+  },
+  {
+    slug: "satin-square-scarf",
+    title: "Satin Square Scarf",
+    description:
+      "A 90×90cm satin-silk square scarf with a subtle sheen — worn as a hijab, neck scarf, or bag accent. Finished edges resist fraying wash after wash.",
+    categorySlug: "scarves-shawls",
+    collectionSlugs: [],
+    fabric: "Satin Silk Blend",
+    careInstructions: "Hand wash cold, dry flat, do not wring.",
+    basePricePaise: 59900,
+    variants: [
+      { colorName: "Champagne", colorHex: "#E4D3B0", stock: 24 },
+      { colorName: "Wine", colorHex: "#5E2A3B", stock: 20 },
+      { colorName: "Forest Green", colorHex: "#2F4A3A", stock: 18 },
+      { colorName: "Black", colorHex: "#111113", stock: 30 },
+    ],
+  },
+  {
+    slug: "viscose-everyday-shawl",
+    title: "Viscose Everyday Shawl",
+    description:
+      "A long rectangular shawl in soft viscose — generous 180×75cm coverage for easy draping, layering, or wrapping over any outfit.",
+    categorySlug: "scarves-shawls",
+    collectionSlugs: ["everyday-jersey"],
+    fabric: "Viscose Blend",
+    careInstructions: "Machine wash cold on gentle, hang dry.",
+    basePricePaise: 54900,
+    variants: [
+      { colorName: "Oatmeal", colorHex: "#D8C7A8", stock: 26 },
+      { colorName: "Dusty Rose", colorHex: "#C58F8F", stock: 22 },
+      { colorName: "Slate Blue", colorHex: "#5C7A99", stock: 20 },
+    ],
+  },
+  {
+    slug: "wool-blend-winter-shawl",
+    title: "Wool-Blend Winter Shawl",
+    description:
+      "A heavier wool-viscose shawl with a brushed finish for cold-weather warmth, without losing the fluid drape of a lighter scarf.",
+    categorySlug: "scarves-shawls",
+    collectionSlugs: [],
+    fabric: "Wool-Viscose Blend",
+    careInstructions: "Dry clean recommended; hand wash cold as an alternative.",
+    basePricePaise: 89900,
+    variants: [
+      { colorName: "Camel", colorHex: "#B9925A", stock: 15 },
+      { colorName: "Charcoal", colorHex: "#3B3B3D", stock: 18 },
+      { colorName: "Deep Plum", colorHex: "#4A2A4A", stock: 12 },
+    ],
+  },
+  {
+    slug: "two-piece-prayer-set",
+    title: "Two-Piece Prayer Set",
+    description:
+      "A flowing two-piece prayer set (top and skirt) in an opaque, lightweight crepe — easy to move in, with an elasticated waist for a secure fit.",
+    categorySlug: "prayer-wear",
+    collectionSlugs: [],
+    fabric: "Soft Crepe",
+    careInstructions: "Machine wash cold, hang dry, cool iron if needed.",
+    basePricePaise: 119900,
+    variants: [
+      { colorName: "Black", colorHex: "#111113", size: "One Size", stock: 20 },
+      { colorName: "Navy", colorHex: "#22324F", size: "One Size", stock: 16 },
+      { colorName: "Grey", colorHex: "#6B6B6E", size: "One Size", stock: 14 },
+    ],
+  },
+  {
+    slug: "travel-prayer-dress",
+    title: "Travel Prayer Dress",
+    description:
+      "A compact, one-piece prayer dress that folds into its own pouch — built for travel and bag storage without creasing.",
+    categorySlug: "prayer-wear",
+    collectionSlugs: [],
+    fabric: "Lightweight Jersey",
+    careInstructions: "Machine wash cold, tumble dry low.",
+    basePricePaise: 79900,
+    variants: [
+      { colorName: "Black", colorHex: "#111113", size: "One Size", stock: 25 },
+      { colorName: "Charcoal", colorHex: "#3B3B3D", size: "One Size", stock: 18 },
     ],
   },
 ];

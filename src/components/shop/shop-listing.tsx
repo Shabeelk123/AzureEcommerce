@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { getFilterOptions, getProducts } from "@/lib/catalog";
-import { ProductCard } from "@/components/shop/product-card";
+import { ChevronRight, Leaf, ShieldCheck, Wind, X } from "lucide-react";
+import { getCategoriesWithProductCounts, getFilterOptions, getProducts } from "@/lib/catalog";
+import { getCurrentUser } from "@/lib/auth/current-user";
+import { getWishlistProductIds } from "@/lib/wishlist";
+import { HrefSelect } from "@/components/shop/href-select";
+import { ProductGridDensity } from "@/components/shop/product-grid-density";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   type RawSearchParams,
@@ -25,98 +29,171 @@ import {
 // blocking-prerender-dynamic failure the /login page hit in Phase 2, one
 // call-site further up the tree.
 
-async function FiltersSidebar({
+async function CategoryPills({ categorySlug }: { categorySlug?: string }) {
+  const categories = await getCategoriesWithProductCounts();
+  const activeClass = "bg-[#090707] text-white";
+  const inactiveClass = "bg-[#f1ede8] text-[#1c1c19] hover:bg-[#ebe8e3]";
+
+  return (
+    <div className="no-scrollbar flex max-w-full shrink-0 items-center gap-2 overflow-x-auto pb-1">
+      <Link
+        href="/shop"
+        className={`font-jakarta shrink-0 rounded-full px-4 py-2 text-[13px] font-semibold tracking-wide transition-all ${!categorySlug ? activeClass : inactiveClass}`}
+      >
+        All
+      </Link>
+      {categories.map((category) => (
+        <Link
+          key={category.id}
+          href={`/shop/${category.slug}`}
+          className={`font-jakarta shrink-0 rounded-full px-4 py-2 text-[13px] font-semibold tracking-wide transition-all ${categorySlug === category.slug ? activeClass : inactiveClass}`}
+        >
+          {category.name}
+          <span className="ml-1 font-normal opacity-70">({category._count.products})</span>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+function CategoryPillsSkeleton() {
+  return <Skeleton className="h-10 w-full max-w-md rounded-full" />;
+}
+
+async function FilterBar({
   basePath,
+  categorySlug,
+  showCategoryPills,
   searchParams,
 }: {
   basePath: string;
+  categorySlug?: string;
+  showCategoryPills: boolean;
   searchParams: Promise<RawSearchParams>;
 }) {
-  const [resolved, { fabrics, colors }] = await Promise.all([
-    searchParams,
-    getFilterOptions(),
-  ]);
+  const [resolved, { colors }] = await Promise.all([searchParams, getFilterOptions()]);
+  const filters = parseFilters(resolved);
+
+  const priceOptions = [
+    { value: "", label: "All Prices", href: withParams(basePath, resolved, { price: undefined }) },
+    ...priceBands(basePath, resolved).map((band) => ({
+      value: band.key,
+      label: band.label,
+      href: band.active ? withParams(basePath, resolved, { price: undefined }) : band.href,
+    })),
+  ];
+  const activePrice = priceBands(basePath, resolved).find((b) => b.active);
+
+  const sortOptions = SORT_OPTIONS.map((option) => ({
+    value: option.value,
+    label: option.label,
+    href: sortHref(basePath, resolved, option.value),
+  }));
+
+  const selectClass =
+    "font-jakarta appearance-none rounded-full bg-[#fdfbf7] py-2 pr-8 pl-3.5 text-[13px] text-[#1c1c19] shadow-sm focus:ring-1 focus:ring-[#9e7770] focus:outline-none";
 
   return (
-    <aside className="space-y-8">
-      <div>
-        <h3 className="mb-3 text-sm font-semibold">Price</h3>
-        <ul className="space-y-2">
-          {priceBands(basePath, resolved).map((band) => (
-            <li key={band.key}>
-              <Link
-                href={band.href}
-                className={`text-sm ${band.active ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                {band.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
+    <div className="space-y-4 rounded-xl bg-[#f7f3ee] p-4 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        {showCategoryPills ? (
+          <Suspense fallback={<CategoryPillsSkeleton />}>
+            <CategoryPills categorySlug={categorySlug} />
+          </Suspense>
+        ) : (
+          <div />
+        )}
+
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <div className="relative inline-block">
+            <HrefSelect
+              ariaLabel="Filter by price"
+              value={activePrice?.key ?? ""}
+              options={priceOptions}
+              className={selectClass}
+            />
+          </div>
+
+          <div className="relative inline-block">
+            <HrefSelect
+              ariaLabel="Sort products"
+              value={filters.sort ?? "newest"}
+              options={sortOptions}
+              className={`${selectClass} font-medium text-[#090707]`}
+            />
+          </div>
+        </div>
       </div>
 
-      {fabrics.length > 0 && (
-        <div>
-          <h3 className="mb-3 text-sm font-semibold">Fabric</h3>
-          <ul className="space-y-2">
-            {fabrics.map((fabric) => {
-              const active = isListParamActive(resolved, "fabric", fabric);
-              return (
-                <li key={fabric}>
-                  <Link
-                    href={toggleListParamHref(basePath, resolved, "fabric", fabric)}
-                    className={`text-sm ${active ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"}`}
-                  >
-                    {fabric}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
-
       {colors.length > 0 && (
-        <div>
-          <h3 className="mb-3 text-sm font-semibold">Color</h3>
-          <div className="flex flex-wrap gap-2">
-            {colors.map((color) => {
-              const active = isListParamActive(resolved, "color", color.name);
-              return (
-                <Link
-                  key={color.name}
-                  href={toggleListParamHref(basePath, resolved, "color", color.name)}
-                  title={color.name}
-                  className={`h-7 w-7 rounded-full border-2 ${active ? "border-primary" : "border-transparent"}`}
-                >
-                  <span
-                    className="border-border block h-full w-full rounded-full border"
-                    style={{ backgroundColor: color.hex }}
-                  />
-                </Link>
-              );
-            })}
-          </div>
+        <div className="flex flex-wrap items-center gap-2 border-t border-[#e6e2dd] pt-3">
+          <span className="font-jakarta mr-1 text-[11px] font-semibold tracking-widest text-[#4d4545] uppercase">
+            Shade
+          </span>
+          {colors.map((color) => {
+            const active = isListParamActive(resolved, "color", color.name);
+            return (
+              <Link
+                key={color.name}
+                href={toggleListParamHref(basePath, resolved, "color", color.name)}
+                title={color.name}
+                aria-label={`Filter ${color.name}`}
+                className={`flex h-7 w-7 items-center justify-center rounded-full shadow-sm transition-transform hover:scale-110 ${active ? "ring-2 ring-[#090707] ring-offset-2" : ""}`}
+                style={{ backgroundColor: color.hex }}
+              />
+            );
+          })}
         </div>
       )}
 
       {hasActiveFilters(resolved) && (
-        <Link href={basePath} className="text-primary text-sm hover:underline">
-          Clear all filters
-        </Link>
+        <div className="flex flex-wrap items-center gap-2 border-t border-[#e6e2dd] pt-3">
+          <span className="font-jakarta mr-1 text-[11px] font-semibold tracking-widest text-[#4d4545] uppercase">
+            Active
+          </span>
+          {(filters.fabrics ?? []).map((fabric) => (
+            <Link
+              key={`fabric-${fabric}`}
+              href={toggleListParamHref(basePath, resolved, "fabric", fabric)}
+              className="font-jakarta inline-flex items-center gap-1.5 rounded-full bg-[#ebe8e3] px-3 py-1 text-[12px] text-[#1c1c19]"
+            >
+              Fabric: <strong>{fabric}</strong>
+              <X className="h-3 w-3" />
+            </Link>
+          ))}
+          {(filters.colors ?? []).map((color) => (
+            <Link
+              key={`color-${color}`}
+              href={toggleListParamHref(basePath, resolved, "color", color)}
+              className="font-jakarta inline-flex items-center gap-1.5 rounded-full bg-[#ebe8e3] px-3 py-1 text-[12px] text-[#1c1c19]"
+            >
+              Color: <strong>{color}</strong>
+              <X className="h-3 w-3" />
+            </Link>
+          ))}
+          {activePrice && (
+            <Link
+              href={withParams(basePath, resolved, { price: undefined })}
+              className="font-jakarta inline-flex items-center gap-1.5 rounded-full bg-[#ebe8e3] px-3 py-1 text-[12px] text-[#1c1c19]"
+            >
+              {activePrice.label}
+              <X className="h-3 w-3" />
+            </Link>
+          )}
+          <Link
+            href={basePath}
+            className="font-jakarta ml-1 text-[12px] font-semibold tracking-wide text-[#79564f] underline"
+          >
+            Clear All
+          </Link>
+        </div>
       )}
-    </aside>
+    </div>
   );
 }
 
-function FiltersSkeleton() {
-  return (
-    <div className="space-y-6">
-      <Skeleton className="h-24 w-full" />
-      <Skeleton className="h-32 w-full" />
-      <Skeleton className="h-16 w-full" />
-    </div>
-  );
+function FilterBarSkeleton() {
+  return <Skeleton className="h-24 w-full rounded-xl" />;
 }
 
 async function ProductGrid({
@@ -132,13 +209,17 @@ async function ProductGrid({
 }) {
   const resolved = await searchParams;
   const filters = parseFilters(resolved, { categorySlug, collectionSlug });
-  const { products, total, page, pageCount } = await getProducts(filters);
+  const [{ products, total, page, pageCount }, user] = await Promise.all([
+    getProducts(filters),
+    getCurrentUser(),
+  ]);
+  const wishlistedIds = user ? [...(await getWishlistProductIds(user.id))] : [];
 
   if (products.length === 0) {
     return (
-      <div className="text-muted-foreground rounded-lg border border-dashed py-24 text-center text-sm">
+      <div className="font-jakarta rounded-xl border border-dashed border-[#d0c4c4] py-24 text-center text-sm text-[#4d4545]">
         No products match these filters.{" "}
-        <Link href={basePath} className="text-primary hover:underline">
+        <Link href={basePath} className="font-semibold text-[#79564f] underline">
           Clear filters
         </Link>
       </div>
@@ -147,44 +228,21 @@ async function ProductGrid({
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <p className="text-muted-foreground text-sm">{total} products</p>
-        <div className="flex gap-3 text-sm">
-          {SORT_OPTIONS.map((option) => (
-            <Link
-              key={option.value}
-              href={sortHref(basePath, resolved, option.value)}
-              className={
-                filters.sort === option.value
-                  ? "text-primary font-medium"
-                  : "text-muted-foreground hover:text-foreground"
-              }
-            >
-              {option.label}
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3">
-        {products.map((product) => (
-          <ProductCard key={product.id} product={product} />
-        ))}
-      </div>
+      <ProductGridDensity products={products} wishlistedIds={wishlistedIds} />
 
       {pageCount > 1 && (
         <nav
-          className="mt-10 flex items-center justify-center gap-2"
+          className="mt-14 flex items-center justify-center gap-2"
           aria-label="Pagination"
         >
           {Array.from({ length: pageCount }, (_, i) => i + 1).map((p) => (
             <Link
               key={p}
               href={pageHref(basePath, resolved, p)}
-              className={`flex h-9 w-9 items-center justify-center rounded-md text-sm ${
+              className={`font-jakarta flex h-10 w-10 items-center justify-center rounded-full text-[13px] font-semibold transition-colors ${
                 p === page
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted"
+                  ? "bg-[#090707] text-white"
+                  : "bg-[#f1ede8] text-[#4d4545] hover:bg-[#ebe8e3] hover:text-[#090707]"
               }`}
             >
               {p}
@@ -192,20 +250,45 @@ async function ProductGrid({
           ))}
         </nav>
       )}
+
+      <p className="font-jakarta mt-4 text-center text-[13px] text-[#4d4545]">
+        Showing <strong className="text-[#090707]">{products.length}</strong> of{" "}
+        <strong className="text-[#090707]">{total}</strong> curated drapes
+      </p>
     </div>
   );
 }
 
 function GridSkeleton() {
   return (
-    <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3">
-      {Array.from({ length: 6 }).map((_, i) => (
+    <div className="grid grid-cols-2 gap-x-4 gap-y-8 lg:grid-cols-4">
+      {Array.from({ length: 8 }).map((_, i) => (
         <div key={i} className="space-y-3">
-          <Skeleton className="aspect-4/5 w-full rounded-lg" />
+          <Skeleton className="aspect-3/4 w-full rounded-xl" />
           <Skeleton className="h-4 w-3/4" />
           <Skeleton className="h-4 w-1/2" />
         </div>
       ))}
+    </div>
+  );
+}
+
+async function ProductCountPill({
+  categorySlug,
+  collectionSlug,
+  searchParams,
+}: {
+  categorySlug?: string;
+  collectionSlug?: string;
+  searchParams: Promise<RawSearchParams>;
+}) {
+  const resolved = await searchParams;
+  const filters = parseFilters(resolved, { categorySlug, collectionSlug });
+  const { total } = await getProducts(filters);
+  return (
+    <div className="font-jakarta inline-flex items-center gap-2 rounded-full bg-[#f7f3ee] px-4 py-2 text-[11px] font-semibold tracking-widest text-[#1c1c19] uppercase">
+      <span className="h-1.5 w-1.5 rounded-full bg-[#79564f]" />
+      {total} {total === 1 ? "Product" : "Products"} Available
     </div>
   );
 }
@@ -226,18 +309,47 @@ export function ShopListing({
   searchParams: Promise<RawSearchParams>;
 }) {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10">
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        {description && (
-          <p className="text-muted-foreground mt-2 max-w-2xl">{description}</p>
-        )}
-      </div>
+    <div className="font-jakarta bg-[#fdf9f4]">
+      <section className="mx-auto w-full max-w-360 px-5 pt-6 pb-8 md:px-10 lg:px-16">
+        <nav className="mb-4 flex items-center gap-2 text-[11px] font-semibold tracking-widest text-[#4d4545] uppercase">
+          <Link href="/" className="transition-colors hover:text-[#090707]">
+            Home
+          </Link>
+          <ChevronRight className="h-3 w-3 opacity-40" />
+          <span className="text-[#090707]">{title}</span>
+        </nav>
 
-      <div className="grid grid-cols-1 gap-8 md:grid-cols-[200px_1fr]">
-        <Suspense fallback={<FiltersSkeleton />}>
-          <FiltersSidebar basePath={basePath} searchParams={searchParams} />
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+          <div className="max-w-2xl">
+            <h1 className="font-playfair text-3xl text-[#090707] md:text-[40px]">{title}</h1>
+            {description && (
+              <p className="mt-2 max-w-xl text-base leading-relaxed text-[#4d4545]">
+                {description}
+              </p>
+            )}
+          </div>
+          <Suspense fallback={<Skeleton className="h-9 w-40 rounded-full" />}>
+            <ProductCountPill
+              categorySlug={categorySlug}
+              collectionSlug={collectionSlug}
+              searchParams={searchParams}
+            />
+          </Suspense>
+        </div>
+      </section>
+
+      <section className="mx-auto mb-8 w-full max-w-360 px-5 md:px-10 lg:px-16">
+        <Suspense fallback={<FilterBarSkeleton />}>
+          <FilterBar
+            basePath={basePath}
+            categorySlug={categorySlug}
+            showCategoryPills={!collectionSlug}
+            searchParams={searchParams}
+          />
         </Suspense>
+      </section>
+
+      <section className="mx-auto w-full max-w-360 px-5 pb-24 md:px-10 lg:px-16">
         <Suspense fallback={<GridSkeleton />}>
           <ProductGrid
             basePath={basePath}
@@ -246,7 +358,46 @@ export function ShopListing({
             searchParams={searchParams}
           />
         </Suspense>
-      </div>
+      </section>
+
+      <section className="w-full bg-[#f7f3ee] py-16">
+        <div className="mx-auto grid max-w-360 grid-cols-1 gap-8 px-5 md:grid-cols-3 md:px-10 lg:px-16">
+          <div className="flex items-start gap-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f1ede8] text-[#090707]">
+              <Wind className="h-5 w-5" />
+            </div>
+            <div>
+              <h4 className="text-[15px] font-semibold text-[#090707]">Breathable Fabrics</h4>
+              <p className="mt-1 text-sm leading-relaxed text-[#4d4545]">
+                Jersey, modal, georgette, and chiffon chosen for all-day comfort without
+                overheating.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f1ede8] text-[#090707]">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+            <div>
+              <h4 className="text-[15px] font-semibold text-[#090707]">Secure Checkout</h4>
+              <p className="mt-1 text-sm leading-relaxed text-[#4d4545]">
+                Every order is processed through Razorpay&rsquo;s encrypted payment gateway.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f1ede8] text-[#090707]">
+              <Leaf className="h-5 w-5" />
+            </div>
+            <div>
+              <h4 className="text-[15px] font-semibold text-[#090707]">Thoughtfully Sourced</h4>
+              <p className="mt-1 text-sm leading-relaxed text-[#4d4545]">
+                Fabrics selected for quality and softness, from mills we trust.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

@@ -34,6 +34,7 @@ export const placeOrderAction = actionClient
       state: parsedInput.state,
       pincode: parsedInput.pincode,
       couponCode: parsedInput.couponCode || undefined,
+      paymentMethod: parsedInput.paymentMethod,
     });
 
     if (!result.ok) throw new ActionError(result.reason);

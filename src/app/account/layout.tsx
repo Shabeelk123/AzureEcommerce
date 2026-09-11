@@ -27,6 +27,9 @@ export default function AccountLayout({ children }: { children: ReactNode }) {
           <Link href="/account/orders" className="text-stone-700 hover:text-stone-900">
             Orders
           </Link>
+          <Link href="/account/wishlist" className="text-stone-700 hover:text-stone-900">
+            Wishlist
+          </Link>
         </nav>
         <form action={logout} className="mt-6 hidden sm:block">
           <button

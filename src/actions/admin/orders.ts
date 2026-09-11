@@ -7,6 +7,7 @@ import {
   OrderActionError,
   cancelOrder,
   issueRefund,
+  markCodCollected,
   markOrderShipped,
   updateOrderStatus,
 } from "@/lib/order";
@@ -55,6 +56,13 @@ export const cancelOrderAction = actionClient
   .inputSchema(z.object({ orderId: z.string().min(1), reason: z.string().trim().max(500).optional() }))
   .action(async ({ parsedInput }) => {
     await runAdminOrderOp(() => cancelOrder(parsedInput.orderId, parsedInput.reason));
+    return { ok: true };
+  });
+
+export const markCodCollectedAction = actionClient
+  .inputSchema(z.object({ orderId: z.string().min(1) }))
+  .action(async ({ parsedInput }) => {
+    await runAdminOrderOp(() => markCodCollected(parsedInput.orderId));
     return { ok: true };
   });
 
