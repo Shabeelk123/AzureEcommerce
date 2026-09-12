@@ -54,12 +54,22 @@ function FabricChips({ basePath, resolved }: { basePath: string; resolved: RawSe
 
 async function FilterBar({
   basePath,
+  categorySlug,
   searchParams,
 }: {
   basePath: string;
+  categorySlug?: string;
   searchParams: Promise<RawSearchParams>;
 }) {
-  const [resolved, { colors }] = await Promise.all([searchParams, getFilterOptions()]);
+  // Shades and fabric chips are only meaningful within Hijabs — the other
+  // categories (Underscarves & Caps, Scarves & Shawls, Prayer Wear) don't
+  // have enough fabric/colorway variety for these filters to earn their
+  // shelf space.
+  const isHijabs = categorySlug === "hijabs";
+  const [resolved, { colors }] = await Promise.all([
+    searchParams,
+    getFilterOptions(isHijabs ? categorySlug : undefined),
+  ]);
   const filters = parseFilters(resolved);
 
   const priceOptions = [
@@ -84,7 +94,7 @@ async function FilterBar({
   return (
     <div className="space-y-4 rounded-xl bg-[#f7f3ee] p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <FabricChips basePath={basePath} resolved={resolved} />
+        {isHijabs && <FabricChips basePath={basePath} resolved={resolved} />}
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <div className="relative inline-block">
@@ -107,7 +117,7 @@ async function FilterBar({
         </div>
       </div>
 
-      {colors.length > 0 && (
+      {isHijabs && colors.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 border-t border-[#e6e2dd] pt-3">
           <span className="font-jakarta mr-1 text-[11px] font-semibold tracking-widest text-[#4d4545] uppercase">
             Shade
@@ -322,7 +332,7 @@ export function ShopListing({
 
       <section className="mx-auto mb-8 w-full max-w-360 px-5 md:px-10 lg:px-16">
         <Suspense fallback={<FilterBarSkeleton />}>
-          <FilterBar basePath={basePath} searchParams={searchParams} />
+          <FilterBar basePath={basePath} categorySlug={categorySlug} searchParams={searchParams} />
         </Suspense>
       </section>
 

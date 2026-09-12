@@ -217,13 +217,19 @@ export async function getCollectionBySlug(slug: string) {
  * src/lib/shop-url.ts — not derived from the DB: Product.fabric is a full
  * free-text description, e.g. "Premium Viscose Jersey", so its *distinct*
  * values are nearly one-per-product and not useful as filter chips.) */
-export async function getFilterOptions() {
+export async function getFilterOptions(categorySlug?: string) {
   "use cache";
   cacheTag("products");
   cacheLife("days");
 
   const colors = await prisma.productVariant.findMany({
-    where: { isActive: true, product: { status: "ACTIVE" } },
+    where: {
+      isActive: true,
+      product: {
+        status: "ACTIVE",
+        ...(categorySlug ? { category: { slug: categorySlug } } : {}),
+      },
+    },
     select: { colorName: true, colorHex: true },
     distinct: ["colorName"],
     orderBy: { colorName: "asc" },

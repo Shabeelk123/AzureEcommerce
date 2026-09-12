@@ -11,6 +11,7 @@ import { CartSheet, CartContentsSkeleton } from "@/components/cart/cart-sheet";
 import { CartBadge, CartBadgeFallback } from "@/components/cart/cart-badge";
 import { CartContents } from "@/components/cart/cart-contents";
 import { WishlistBadge, WishlistBadgeFallback } from "@/components/shop/wishlist-badge";
+import { NavLinks } from "@/components/shop/nav-links";
 
 async function PromoBar() {
   const settings = await getSettings();
@@ -21,27 +22,9 @@ async function PromoBar() {
   );
 }
 
-async function NavLinks({ className }: { className?: string }) {
+async function NavLinksData({ className }: { className?: string }) {
   const categories = await getCategories();
-  return (
-    <nav className={className}>
-      <Link
-        href="/"
-        className="font-medium text-[#090707] underline decoration-[#79564f] decoration-1 underline-offset-8"
-      >
-        Home
-      </Link>
-      {categories.map((category) => (
-        <Link
-          key={category.id}
-          href={`/shop/${category.slug}`}
-          className="text-[#4d4545] transition-colors duration-200 hover:text-[#090707]"
-        >
-          {category.name}
-        </Link>
-      ))}
-    </nav>
-  );
+  return <NavLinks categories={categories} className={className} />;
 }
 
 function SearchForm() {
@@ -74,7 +57,7 @@ export function SiteHeader() {
           <SheetContent side="left" className="w-72">
             <SheetTitle className="px-4 pt-4">Menu</SheetTitle>
             <Suspense fallback={null}>
-              <NavLinks className="flex flex-col gap-4 px-4 py-6 font-jakarta text-sm" />
+              <NavLinksData className="flex flex-col gap-4 px-4 py-6 font-jakarta text-sm" />
             </Suspense>
           </SheetContent>
         </Sheet>
@@ -86,7 +69,7 @@ export function SiteHeader() {
         </Link>
 
         <Suspense fallback={null}>
-          <NavLinks className="hidden items-center gap-8 font-jakarta text-sm md:flex" />
+          <NavLinksData className="hidden items-center gap-8 font-jakarta text-sm md:flex" />
         </Suspense>
 
         <div className="ml-auto flex items-center gap-2 lg:gap-4">
