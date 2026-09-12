@@ -26,7 +26,10 @@ type Variant = {
 const emptyDraft = {
   sku: "",
   colorName: "",
-  colorHex: "#000000",
+  // Neutral gray, not black — this is a fallback for admins who don't
+  // bother picking an exact swatch (color name is the field that
+  // actually matters; see the "optional" label below).
+  colorHex: "#9ca3af",
   size: "",
   length: "",
   pricePaise: "",
@@ -108,15 +111,19 @@ export function ProductVariantsPanel({ productId, variants }: { productId: strin
         <div className="grid grid-cols-2 gap-2 rounded-md border bg-muted/30 p-3 sm:grid-cols-4">
           <Input placeholder="SKU" value={draft.sku} onChange={(e) => setDraft({ ...draft, sku: e.target.value })} />
           <Input
-            placeholder="Color name"
+            placeholder="Color name (e.g. Dusty Rose)"
             value={draft.colorName}
             onChange={(e) => setDraft({ ...draft, colorName: e.target.value })}
           />
-          <Input
-            type="color"
-            value={draft.colorHex}
-            onChange={(e) => setDraft({ ...draft, colorHex: e.target.value })}
-          />
+          <div className="flex items-center gap-1.5">
+            <Input
+              type="color"
+              className="h-9 w-12 shrink-0 p-1"
+              value={draft.colorHex}
+              onChange={(e) => setDraft({ ...draft, colorHex: e.target.value })}
+            />
+            <span className="text-[11px] text-stone-500">Swatch (optional)</span>
+          </div>
           <Input placeholder="Size (optional)" value={draft.size} onChange={(e) => setDraft({ ...draft, size: e.target.value })} />
           <Input
             placeholder="Length (optional)"

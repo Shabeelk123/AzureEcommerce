@@ -124,15 +124,25 @@ async function FilterBar({
           </span>
           {colors.map((color) => {
             const active = isListParamActive(resolved, "color", color.name);
+            const activeClass = "bg-[#090707] text-white";
+            const inactiveClass = "bg-[#f1ede8] text-[#1c1c19] hover:bg-[#ebe8e3]";
             return (
+              // Labeled by name, not left to the swatch alone — an exact
+              // hex per shade isn't realistic to keep accurate across a
+              // catalog this size, so the dot is a rough accent and the
+              // text is what a shopper actually reads.
               <Link
                 key={color.name}
                 href={toggleListParamHref(basePath, resolved, "color", color.name)}
-                title={color.name}
                 aria-label={`Filter ${color.name}`}
-                className={`flex h-7 w-7 items-center justify-center rounded-full shadow-sm transition-transform hover:scale-110 ${active ? "ring-2 ring-[#090707] ring-offset-2" : ""}`}
-                style={{ backgroundColor: color.hex }}
-              />
+                className={`font-jakarta inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-medium transition-all ${active ? activeClass : inactiveClass}`}
+              >
+                <span
+                  className="h-3 w-3 shrink-0 rounded-full border border-black/10"
+                  style={{ backgroundColor: color.hex }}
+                />
+                {color.name}
+              </Link>
             );
           })}
         </div>
