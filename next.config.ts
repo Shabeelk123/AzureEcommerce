@@ -13,7 +13,13 @@ const CSP = [
   // serves bundles Checkout itself loads afterward (e.g. its risk-detection
   // script) — found by actually opening Checkout under this CSP and
   // watching for violations, not guessed from Razorpay's docs alone.
-  "script-src 'self' 'unsafe-inline' https://checkout.razorpay.com https://cdn.razorpay.com",
+  // 'unsafe-eval' only in dev: Next's dev-mode React Refresh/debugging
+  // relies on eval() to reconstruct stack traces across module boundaries.
+  // Production never needs it — React itself never calls eval() when built
+  // for production, so omitting it there is a real hardening, not a no-op.
+  `script-src 'self' 'unsafe-inline' ${
+    process.env.NODE_ENV === "development" ? "'unsafe-eval' " : ""
+  }https://checkout.razorpay.com https://cdn.razorpay.com`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "img-src 'self' data: https:",
   "font-src 'self' https://fonts.gstatic.com data:",
