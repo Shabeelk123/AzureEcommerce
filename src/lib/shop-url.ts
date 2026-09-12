@@ -18,14 +18,11 @@ export const FABRIC_FAMILIES = [
   "Jersey",
   "Chiffon",
   "Georgette",
-  "Modal",
+  "Organza",
   "Cotton",
+  "Printed chiffon",
+  "soft modal",
   "Satin",
-  "Silk",
-  "Crepe",
-  "Viscose",
-  "Linen",
-  "Wool",
 ] as const;
 
 function first(value: string | string[] | undefined): string | undefined {
