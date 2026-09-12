@@ -8,6 +8,26 @@ const PRICE_BANDS = [
   { key: "120000-", label: "₹1,200 & above", min: 120000, max: undefined },
 ] as const;
 
+// Curated fabric *families* — matched against Product.fabric by substring
+// (see catalog.ts's buildWhere), not the distinct raw fabric strings
+// themselves ("Premium Viscose Jersey", "Georgette Chiffon", ...), which
+// are nearly one-per-product and useless as filter chips. This list is a
+// deliberate editorial choice, the same way SORT_OPTIONS/PRICE_BANDS
+// below are — extend it by hand as the catalog's fabric vocabulary grows.
+export const FABRIC_FAMILIES = [
+  "Jersey",
+  "Chiffon",
+  "Georgette",
+  "Modal",
+  "Cotton",
+  "Satin",
+  "Silk",
+  "Crepe",
+  "Viscose",
+  "Linen",
+  "Wool",
+] as const;
+
 function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }

@@ -30,8 +30,13 @@ type SeedProduct = {
 };
 
 const CATEGORIES = [
-  { slug: "everyday-hijabs", name: "Everyday Hijabs", sortOrder: 1 },
-  { slug: "premium-hijabs", name: "Premium Hijabs", sortOrder: 2 },
+  // Everyday and Premium were originally separate categories (a quality
+  // tier distinction); merged into one "Hijabs" category so the navbar
+  // has a single entry point that lists every hijab regardless of tier —
+  // the tier distinction wasn't meaningful enough to shoppers to justify
+  // splitting navigation over it. Fabric/style is now the real
+  // differentiator, surfaced as filter chips on the shop page instead.
+  { slug: "hijabs", name: "Hijabs", sortOrder: 1 },
   { slug: "underscarves", name: "Underscarves & Caps", sortOrder: 3 },
   // Broadens the catalog beyond hijabs, matching the product-type spread a
   // typical modest-fashion retailer carries (scarves/shawls and prayer
@@ -55,7 +60,7 @@ const PRODUCTS: SeedProduct[] = [
     title: "Signature Jersey Hijab",
     description:
       "Our best-selling everyday hijab in a soft, structured jersey knit that drapes without slipping. Breathable enough for all-day wear, with just enough stretch to pin effortlessly.",
-    categorySlug: "everyday-hijabs",
+    categorySlug: "hijabs",
     collectionSlugs: ["everyday-jersey"],
     fabric: "Premium Viscose Jersey",
     careInstructions: "Hand wash cold, lay flat to dry, cool iron if needed.",
@@ -73,7 +78,7 @@ const PRODUCTS: SeedProduct[] = [
     title: "Chiffon Drape Hijab",
     description:
       "A lightweight, semi-sheer chiffon with a beautiful fluid drape — ideal for layering or occasions where you want extra volume and movement.",
-    categorySlug: "premium-hijabs",
+    categorySlug: "hijabs",
     collectionSlugs: ["eid-edit"],
     fabric: "Georgette Chiffon",
     careInstructions: "Hand wash cold, do not wring, iron on low heat.",
@@ -91,7 +96,7 @@ const PRODUCTS: SeedProduct[] = [
     title: "Modal Everyday Hijab",
     description:
       "Buttery-soft modal fabric that stays cool in humidity and resists creasing — a monsoon-season favorite that still holds its shape.",
-    categorySlug: "everyday-hijabs",
+    categorySlug: "hijabs",
     collectionSlugs: ["monsoon-modal"],
     fabric: "Bamboo Modal",
     careInstructions: "Machine wash cold on gentle, tumble dry low.",
@@ -108,7 +113,7 @@ const PRODUCTS: SeedProduct[] = [
     title: "Satin-Lined Premium Hijab",
     description:
       "A dual-layer hijab with a satin lining that glides against hair instead of catching on it — reduces frizz and keeps your style in place longer.",
-    categorySlug: "premium-hijabs",
+    categorySlug: "hijabs",
     collectionSlugs: ["eid-edit"],
     fabric: "Crepe with Satin Lining",
     careInstructions: "Hand wash cold, dry flat away from direct sun.",
@@ -125,7 +130,7 @@ const PRODUCTS: SeedProduct[] = [
     title: "Instant Slip-On Hijab",
     description:
       "No pins, no wrapping — a pre-styled, one-piece hijab that slips on in seconds. Built-in underscarve for full coverage, perfect for busy mornings.",
-    categorySlug: "everyday-hijabs",
+    categorySlug: "hijabs",
     collectionSlugs: ["everyday-jersey"],
     fabric: "Cotton-Jersey Blend",
     careInstructions: "Machine wash cold, tumble dry low.",
@@ -141,7 +146,7 @@ const PRODUCTS: SeedProduct[] = [
     title: "Cotton Voile Hijab",
     description:
       "A crisp, lightweight cotton voile with a matte finish — breathable structure for warm days without feeling flimsy.",
-    categorySlug: "everyday-hijabs",
+    categorySlug: "hijabs",
     collectionSlugs: [],
     fabric: "100% Cotton Voile",
     careInstructions: "Machine wash cold, iron warm while slightly damp.",
@@ -157,7 +162,7 @@ const PRODUCTS: SeedProduct[] = [
     title: "Georgette Embroidered Hijab",
     description:
       "Fine floral embroidery along one edge on a flowing georgette base — a statement piece for festive occasions.",
-    categorySlug: "premium-hijabs",
+    categorySlug: "hijabs",
     collectionSlugs: ["eid-edit"],
     fabric: "Embroidered Georgette",
     careInstructions: "Dry clean recommended; hand wash cold as an alternative.",
@@ -173,7 +178,7 @@ const PRODUCTS: SeedProduct[] = [
     title: "Everyday Crepe Hijab",
     description:
       "A textured crepe with natural non-slip grip, so it stays put through a full day without constant re-pinning.",
-    categorySlug: "everyday-hijabs",
+    categorySlug: "hijabs",
     collectionSlugs: ["everyday-jersey"],
     fabric: "Textured Crepe",
     careInstructions: "Hand wash cold, hang dry.",
@@ -206,7 +211,7 @@ const PRODUCTS: SeedProduct[] = [
     title: "Silk-Feel Occasion Hijab",
     description:
       "A luxurious silk-feel finish with a subtle sheen, cut generously for elegant draping at weddings and celebrations.",
-    categorySlug: "premium-hijabs",
+    categorySlug: "hijabs",
     collectionSlugs: ["eid-edit"],
     fabric: "Silk-Feel Polyester Blend",
     careInstructions: "Dry clean only.",
@@ -223,7 +228,7 @@ const PRODUCTS: SeedProduct[] = [
     title: "Rib-Knit Instant Hijab",
     description:
       "A ribbed knit slip-on with extra stretch recovery — holds a close, sporty fit that won't loosen through the day.",
-    categorySlug: "everyday-hijabs",
+    categorySlug: "hijabs",
     collectionSlugs: ["monsoon-modal"],
     fabric: "Rib-Knit Cotton Blend",
     careInstructions: "Machine wash cold, lay flat to dry.",
@@ -239,7 +244,7 @@ const PRODUCTS: SeedProduct[] = [
     title: "Linen-Blend Hijab",
     description:
       "A relaxed linen-cotton blend with natural texture and superior breathability — favors a slightly looser, effortless drape.",
-    categorySlug: "everyday-hijabs",
+    categorySlug: "hijabs",
     collectionSlugs: [],
     fabric: "Linen-Cotton Blend",
     careInstructions: "Machine wash cold, iron warm.",

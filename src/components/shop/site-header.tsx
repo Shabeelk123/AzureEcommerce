@@ -31,12 +31,6 @@ async function NavLinks({ className }: { className?: string }) {
       >
         Home
       </Link>
-      <Link
-        href="/shop"
-        className="text-[#4d4545] transition-colors duration-200 hover:text-[#090707]"
-      >
-        Shop
-      </Link>
       {categories.map((category) => (
         <Link
           key={category.id}

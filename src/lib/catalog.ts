@@ -73,7 +73,13 @@ function buildWhere(filters: ProductFilters): Prisma.ProductWhereInput {
     where.collections = { some: { slug: filters.collectionSlug } };
   }
   if (filters.fabrics?.length) {
-    where.fabric = { in: filters.fabrics };
+    // Substring match, not exact — the filter chips are curated fabric
+    // *families* ("Jersey", "Chiffon"), while Product.fabric is a fuller
+    // free-text description ("Premium Viscose Jersey", "Georgette
+    // Chiffon"). An exact match against these would never hit anything.
+    where.OR = filters.fabrics.map((fabric) => ({
+      fabric: { contains: fabric, mode: "insensitive" as const },
+    }));
   }
   if (filters.colors?.length) {
     where.variants = { some: { colorName: { in: filters.colors }, isActive: true } };
@@ -179,21 +185,6 @@ export async function getCategories() {
   return prisma.category.findMany({ orderBy: { sortOrder: "asc" } });
 }
 
-/** Categories with a real count of their purchasable (ACTIVE, published)
- * products — powers the shop page's category pill counts. */
-export async function getCategoriesWithProductCounts() {
-  "use cache";
-  cacheTag("categories", "products");
-  cacheLife("days");
-
-  return prisma.category.findMany({
-    orderBy: { sortOrder: "asc" },
-    include: {
-      _count: { select: { products: { where: { status: "ACTIVE", publishedAt: { not: null } } } } },
-    },
-  });
-}
-
 export async function getCategoryBySlug(slug: string) {
   "use cache";
   cacheTag("categories", `category:${slug}`);
@@ -221,29 +212,24 @@ export async function getCollectionBySlug(slug: string) {
   return prisma.collection.findUnique({ where: { slug } });
 }
 
-/** Distinct fabric and color values across active products, for filter UI. */
+/** Distinct color values across active products, for the shade swatch filter.
+ * (Fabric filter options are a curated fixed list — see FABRIC_FAMILIES in
+ * src/lib/shop-url.ts — not derived from the DB: Product.fabric is a full
+ * free-text description, e.g. "Premium Viscose Jersey", so its *distinct*
+ * values are nearly one-per-product and not useful as filter chips.) */
 export async function getFilterOptions() {
   "use cache";
   cacheTag("products");
   cacheLife("days");
 
-  const [fabrics, colors] = await Promise.all([
-    prisma.product.findMany({
-      where: { status: "ACTIVE" },
-      select: { fabric: true },
-      distinct: ["fabric"],
-      orderBy: { fabric: "asc" },
-    }),
-    prisma.productVariant.findMany({
-      where: { isActive: true, product: { status: "ACTIVE" } },
-      select: { colorName: true, colorHex: true },
-      distinct: ["colorName"],
-      orderBy: { colorName: "asc" },
-    }),
-  ]);
+  const colors = await prisma.productVariant.findMany({
+    where: { isActive: true, product: { status: "ACTIVE" } },
+    select: { colorName: true, colorHex: true },
+    distinct: ["colorName"],
+    orderBy: { colorName: "asc" },
+  });
 
   return {
-    fabrics: fabrics.map((f) => f.fabric),
     colors: colors.map((c) => ({ name: c.colorName, hex: c.colorHex })),
   };
 }

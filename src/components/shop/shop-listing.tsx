@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { ChevronRight, Leaf, ShieldCheck, Wind, X } from "lucide-react";
-import { getCategoriesWithProductCounts, getFilterOptions, getProducts } from "@/lib/catalog";
+import { getFilterOptions, getProducts } from "@/lib/catalog";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { getWishlistProductIds } from "@/lib/wishlist";
 import { HrefSelect } from "@/components/shop/href-select";
@@ -9,6 +9,7 @@ import { ProductGridDensity } from "@/components/shop/product-grid-density";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   type RawSearchParams,
+  FABRIC_FAMILIES,
   hasActiveFilters,
   isListParamActive,
   pageHref,
@@ -29,46 +30,33 @@ import {
 // blocking-prerender-dynamic failure the /login page hit in Phase 2, one
 // call-site further up the tree.
 
-async function CategoryPills({ categorySlug }: { categorySlug?: string }) {
-  const categories = await getCategoriesWithProductCounts();
+function FabricChips({ basePath, resolved }: { basePath: string; resolved: RawSearchParams }) {
   const activeClass = "bg-[#090707] text-white";
   const inactiveClass = "bg-[#f1ede8] text-[#1c1c19] hover:bg-[#ebe8e3]";
 
   return (
     <div className="no-scrollbar flex max-w-full shrink-0 items-center gap-2 overflow-x-auto pb-1">
-      <Link
-        href="/shop"
-        className={`font-jakarta shrink-0 rounded-full px-4 py-2 text-[13px] font-semibold tracking-wide transition-all ${!categorySlug ? activeClass : inactiveClass}`}
-      >
-        All
-      </Link>
-      {categories.map((category) => (
-        <Link
-          key={category.id}
-          href={`/shop/${category.slug}`}
-          className={`font-jakarta shrink-0 rounded-full px-4 py-2 text-[13px] font-semibold tracking-wide transition-all ${categorySlug === category.slug ? activeClass : inactiveClass}`}
-        >
-          {category.name}
-          <span className="ml-1 font-normal opacity-70">({category._count.products})</span>
-        </Link>
-      ))}
+      {FABRIC_FAMILIES.map((fabric) => {
+        const active = isListParamActive(resolved, "fabric", fabric);
+        return (
+          <Link
+            key={fabric}
+            href={toggleListParamHref(basePath, resolved, "fabric", fabric)}
+            className={`font-jakarta shrink-0 rounded-full px-4 py-2 text-[13px] font-semibold tracking-wide transition-all ${active ? activeClass : inactiveClass}`}
+          >
+            {fabric}
+          </Link>
+        );
+      })}
     </div>
   );
 }
 
-function CategoryPillsSkeleton() {
-  return <Skeleton className="h-10 w-full max-w-md rounded-full" />;
-}
-
 async function FilterBar({
   basePath,
-  categorySlug,
-  showCategoryPills,
   searchParams,
 }: {
   basePath: string;
-  categorySlug?: string;
-  showCategoryPills: boolean;
   searchParams: Promise<RawSearchParams>;
 }) {
   const [resolved, { colors }] = await Promise.all([searchParams, getFilterOptions()]);
@@ -96,13 +84,7 @@ async function FilterBar({
   return (
     <div className="space-y-4 rounded-xl bg-[#f7f3ee] p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        {showCategoryPills ? (
-          <Suspense fallback={<CategoryPillsSkeleton />}>
-            <CategoryPills categorySlug={categorySlug} />
-          </Suspense>
-        ) : (
-          <div />
-        )}
+        <FabricChips basePath={basePath} resolved={resolved} />
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <div className="relative inline-block">
@@ -340,12 +322,7 @@ export function ShopListing({
 
       <section className="mx-auto mb-8 w-full max-w-360 px-5 md:px-10 lg:px-16">
         <Suspense fallback={<FilterBarSkeleton />}>
-          <FilterBar
-            basePath={basePath}
-            categorySlug={categorySlug}
-            showCategoryPills={!collectionSlug}
-            searchParams={searchParams}
-          />
+          <FilterBar basePath={basePath} searchParams={searchParams} />
         </Suspense>
       </section>
 

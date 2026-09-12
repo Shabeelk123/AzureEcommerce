@@ -168,7 +168,7 @@ export function VariantSelector({
         </div>
       )}
 
-      <div className="font-jakarta text-sm">
+      <div className="font-jakarta text-sm p-2.5">
         {stock === 0 ? (
           <span className="font-medium text-red-600">Out of stock</span>
         ) : lowStock ? (
