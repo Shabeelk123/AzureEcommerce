@@ -21,7 +21,11 @@ const CSP = [
     process.env.NODE_ENV === "development" ? "'unsafe-eval' " : ""
   }https://checkout.razorpay.com https://cdn.razorpay.com`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "img-src 'self' data: https:",
+  // blob: is required for the admin image-upload panel, which reads a
+  // just-picked file's dimensions via URL.createObjectURL() before it's
+  // ever sent anywhere — without it the browser silently blocks the <img>
+  // load under CSP, which reads to the caller as "corrupt file".
+  "img-src 'self' data: blob: https:",
   "font-src 'self' https://fonts.gstatic.com data:",
   "connect-src 'self' https://api.razorpay.com https://checkout.razorpay.com https://lumberjack.razorpay.com",
   "frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com",
