@@ -16,6 +16,14 @@ const r2 = new S3Client({
     accessKeyId: env.R2_ACCESS_KEY_ID,
     secretAccessKey: env.R2_SECRET_ACCESS_KEY,
   },
+  // @aws-sdk/client-s3 v3.729+ defaults to WHEN_SUPPORTED, which signs a
+  // CRC32 checksum requirement into every presigned URL (as
+  // x-amz-checksum-crc32 / x-amz-sdk-checksum-algorithm query params).
+  // The browser's plain `fetch(uploadUrl, { method: "PUT" })` never sends
+  // a matching checksum, R2 rejects the mismatch, and because that
+  // rejection response often lacks CORS headers the browser surfaces it
+  // as an opaque "Failed to fetch" instead of a readable error.
+  requestChecksumCalculation: "WHEN_REQUIRED",
 });
 
 const ALLOWED_CONTENT_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
