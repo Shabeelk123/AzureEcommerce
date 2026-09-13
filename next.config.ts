@@ -27,7 +27,11 @@ const CSP = [
   // load under CSP, which reads to the caller as "corrupt file".
   "img-src 'self' data: blob: https:",
   "font-src 'self' https://fonts.gstatic.com data:",
-  "connect-src 'self' https://api.razorpay.com https://checkout.razorpay.com https://lumberjack.razorpay.com",
+  // *.r2.cloudflarestorage.com is where the admin image-upload panel PUTs
+  // file bytes directly from the browser via a presigned URL (see
+  // src/lib/storage.ts) — the account-scoped subdomain is dynamic per
+  // Cloudflare account, hence the wildcard rather than one fixed host.
+  "connect-src 'self' https://api.razorpay.com https://checkout.razorpay.com https://lumberjack.razorpay.com https://*.r2.cloudflarestorage.com",
   "frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com",
   "object-src 'none'",
   "base-uri 'self'",
