@@ -41,12 +41,16 @@ export function DesignProductCard({
   });
 
   const quickAddPricePaise = defaultVariant?.pricePaise ?? product.basePricePaise;
+  // Real product photo first — designProductPhoto is a last-resort mockup
+  // fallback for a product that genuinely has no images yet, not the
+  // default. See src/lib/design-placeholder-images.ts.
+  const photoUrl = product.images[0]?.url ?? designProductPhoto(photoIndex);
 
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-xl bg-[#fdfbf7] shadow-[0_4px_20px_-4px_rgba(34,31,31,0.04)] transition-shadow duration-300 hover:shadow-[0_12px_32px_-6px_rgba(34,31,31,0.07)]">
       <div className="relative aspect-[3/4] overflow-hidden bg-[#f1ede8]">
         <Image
-          src={designProductPhoto(photoIndex)}
+          src={photoUrl}
           alt={product.title}
           fill
           sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
