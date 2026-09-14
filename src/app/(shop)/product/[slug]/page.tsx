@@ -18,6 +18,12 @@ export async function generateStaticParams() {
   // dozen to a few hundred SKUs) makes this cheap and gives every product
   // page a served-from-cache first load.
   const { products } = await getProducts({ page: 1 });
+  // Cache Components rejects an empty array here (a genuine possibility —
+  // the catalog can legitimately be wiped or not yet seeded in production).
+  // The documented workaround is a placeholder param the page already
+  // 404s on via notFound() below. See node_modules/next/dist/docs/.../
+  // generate-static-params.md#with-cache-components.
+  if (products.length === 0) return [{ slug: "__placeholder__" }];
   return products.map((p) => ({ slug: p.slug }));
 }
 

@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAction } from "next-safe-action/hooks";
 import { toast } from "sonner";
+import Image from "next/image";
 import { createCategoryAction, updateCategoryAction } from "@/actions/admin/category";
+import { createPresignedUploadUrlAction } from "@/actions/admin/storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -22,6 +24,40 @@ export function CategoryForm({ initial }: { initial?: CategoryFormValues }) {
   const [values, setValues] = useState<CategoryFormValues>(
     initial ?? { slug: "", name: "", description: "", image: "", sortOrder: 0 },
   );
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const presignAction = useAction(createPresignedUploadUrlAction);
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const presignResult = await presignAction.executeAsync({
+        contentType: file.type,
+        folder: "categories",
+      });
+      const presigned = presignResult?.data;
+      if (!presigned) throw new Error(presignResult?.serverError ?? "Couldn't get an upload URL.");
+
+      // Same direct-to-R2 pattern as the product image panel: the file's
+      // bytes go straight from this browser to R2 via the presigned PUT
+      // URL, and the server never touches them.
+      const putResponse = await fetch(presigned.uploadUrl, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type },
+      });
+      if (!putResponse.ok) throw new Error("Upload to storage failed.");
+
+      setValues((prev) => ({ ...prev, image: presigned.publicUrl }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Upload failed.");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
 
   const createAction = useAction(createCategoryAction, {
     onSuccess: () => {
@@ -77,8 +113,30 @@ export function CategoryForm({ initial }: { initial?: CategoryFormValues }) {
         />
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium">Image URL</label>
-        <Input value={values.image} onChange={(e) => setValues({ ...values, image: e.target.value })} />
+        <label className="mb-1 block text-sm font-medium">Image</label>
+        <div className="flex items-center gap-3">
+          {values.image && (
+            <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md border">
+              <Image src={values.image} alt="" fill className="object-cover" />
+            </div>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/avif"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={uploading}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            {uploading ? "Uploading…" : values.image ? "Replace image" : "Upload image"}
+          </Button>
+        </div>
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium">Sort order</label>

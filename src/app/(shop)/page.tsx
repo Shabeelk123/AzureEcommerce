@@ -163,7 +163,7 @@ export default async function HomePage() {
                 >
                   <div className="relative aspect-[3/4] overflow-hidden rounded-lg bg-[#f1ede8]">
                     <Image
-                      src={designProductPhoto(index)}
+                      src={category.image || designProductPhoto(index)}
                       alt=""
                       fill
                       sizes="(min-width: 1024px) 25vw, 50vw"

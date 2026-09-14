@@ -10,6 +10,12 @@ import type { RawSearchParams } from "@/lib/shop-url";
 // static shell until the next build or an on-demand revalidation.
 export async function generateStaticParams() {
   const categories = await getCategories();
+  // Cache Components rejects an empty array here (a genuine possibility —
+  // the catalog can legitimately be wiped or not yet seeded in production).
+  // The documented workaround is a placeholder param the page already
+  // 404s on via notFound() below. See node_modules/next/dist/docs/.../
+  // generate-static-params.md#with-cache-components.
+  if (categories.length === 0) return [{ categorySlug: "__placeholder__" }];
   return categories.map((c) => ({ categorySlug: c.slug }));
 }
 
