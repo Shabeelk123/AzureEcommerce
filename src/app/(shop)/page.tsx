@@ -3,7 +3,7 @@ import Image from "next/image";
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { ArrowRight, ArrowUpRight, ChevronRight, Sparkles } from "lucide-react";
-import { getCategories, getCollections, getNewArrivals, type ProductCard } from "@/lib/catalog";
+import { getCategories, getNewArrivals, type ProductCard } from "@/lib/catalog";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { getWishlistProductIds } from "@/lib/wishlist";
 import { DesignProductCard } from "@/components/shop/design-product-card";
@@ -48,9 +48,8 @@ async function FeaturedProductsGrid({ products }: { products: ProductCard[] }) {
 // prerendered static shell on its own — home page loads are effectively
 // free, served straight from the CDN/prerender cache.
 export default async function HomePage() {
-  const [categories, featuredCollections, newArrivals] = await Promise.all([
+  const [categories, newArrivals] = await Promise.all([
     getCategories(),
-    getCollections({ featuredOnly: true }),
     getNewArrivals(8),
   ]);
 
@@ -225,43 +224,6 @@ export default async function HomePage() {
             >
               <FeaturedProductsGrid products={newArrivals} />
             </Suspense>
-          </div>
-        </section>
-      )}
-
-      {/* COLLECTIONS */}
-      {featuredCollections.length > 0 && (
-        <section className="w-full bg-[#fdf9f4] py-16 lg:py-24">
-          <div className="mx-auto max-w-360 px-5 md:px-10 lg:px-16">
-            <div className="mb-10 space-y-1">
-              <span className="text-[11px] font-semibold tracking-widest text-[#79564f] uppercase">
-                Edits
-              </span>
-              <h2 className="font-playfair text-3xl text-[#090707] md:text-[40px]">
-                Shop by Collection
-              </h2>
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {featuredCollections.map((collection, index) => (
-                <Link
-                  key={collection.id}
-                  href={`/collections/${collection.slug}`}
-                  className="group relative flex h-64 items-end overflow-hidden rounded-xl bg-[#e6e2dd] p-6"
-                >
-                  <Image
-                    src={designProductPhoto(index)}
-                    alt=""
-                    fill
-                    sizes="(min-width: 640px) 50vw, 100vw"
-                    className="object-cover transition-transform duration-300 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#090707]/60 via-[#090707]/10 to-transparent" />
-                  <span className="font-playfair relative text-2xl text-white">
-                    {collection.name}
-                  </span>
-                </Link>
-              ))}
-            </div>
           </div>
         </section>
       )}
