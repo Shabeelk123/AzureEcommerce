@@ -39,7 +39,17 @@ const emptyDraft = {
   isActive: true,
 };
 
-export function ProductVariantsPanel({ productId, variants }: { productId: string; variants: Variant[] }) {
+type ExistingColor = { colorName: string; colorHex: string };
+
+export function ProductVariantsPanel({
+  productId,
+  variants,
+  existingColors,
+}: {
+  productId: string;
+  variants: Variant[];
+  existingColors: ExistingColor[];
+}) {
   const router = useRouter();
   const [draft, setDraft] = useState(emptyDraft);
   const [showForm, setShowForm] = useState(false);
@@ -110,11 +120,30 @@ export function ProductVariantsPanel({ productId, variants }: { productId: strin
       {showForm && (
         <div className="grid grid-cols-2 gap-2 rounded-md border bg-muted/30 p-3 sm:grid-cols-4">
           <Input placeholder="SKU" value={draft.sku} onChange={(e) => setDraft({ ...draft, sku: e.target.value })} />
-          <Input
-            placeholder="Color name (e.g. Dusty Rose)"
-            value={draft.colorName}
-            onChange={(e) => setDraft({ ...draft, colorName: e.target.value })}
-          />
+          <div className="space-y-1">
+            {existingColors.length > 0 && (
+              <select
+                className="w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-xs shadow-xs"
+                value=""
+                onChange={(e) => {
+                  const match = existingColors.find((c) => c.colorName === e.target.value);
+                  if (match) setDraft({ ...draft, colorName: match.colorName, colorHex: match.colorHex });
+                }}
+              >
+                <option value="">Use an existing color…</option>
+                {existingColors.map((c) => (
+                  <option key={c.colorName} value={c.colorName}>
+                    {c.colorName}
+                  </option>
+                ))}
+              </select>
+            )}
+            <Input
+              placeholder="Color name (e.g. Dusty Rose)"
+              value={draft.colorName}
+              onChange={(e) => setDraft({ ...draft, colorName: e.target.value })}
+            />
+          </div>
           <div className="flex items-center gap-1.5">
             <Input
               type="color"

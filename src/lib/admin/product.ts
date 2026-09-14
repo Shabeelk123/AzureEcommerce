@@ -13,6 +13,20 @@ export type AdminProductFilters = {
   page?: number;
 };
 
+/** Distinct color name/hex pairs already used across every variant, for the
+ * "pick an existing color" dropdown in the admin variant form — keeps color
+ * naming consistent across products (the storefront's shade filter groups
+ * variants by exact colorName match, so "Dusty Rose" vs "dusty rose" would
+ * silently split into two chips). */
+export async function getExistingVariantColors() {
+  const colors = await prisma.productVariant.findMany({
+    select: { colorName: true, colorHex: true },
+    distinct: ["colorName"],
+    orderBy: { colorName: "asc" },
+  });
+  return colors;
+}
+
 export async function listProductsForAdmin(filters: AdminProductFilters = {}) {
   const page = Math.max(1, filters.page ?? 1);
   const where = {

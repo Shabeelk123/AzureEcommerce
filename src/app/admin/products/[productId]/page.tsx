@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/current-user";
-import { getProductForAdmin } from "@/lib/admin/product";
+import { getExistingVariantColors, getProductForAdmin } from "@/lib/admin/product";
 import { prisma } from "@/lib/prisma";
 import { ProductForm } from "@/components/admin/product-form";
 import { ProductVariantsPanel } from "@/components/admin/product-variants-panel";
@@ -16,10 +16,11 @@ type Props = { params: Promise<{ productId: string }> };
 async function EditProduct({ params }: Props) {
   await requireAdmin();
   const { productId } = await params;
-  const [product, categories, collections] = await Promise.all([
+  const [product, categories, collections, existingColors] = await Promise.all([
     getProductForAdmin(productId),
     prisma.category.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     prisma.collection.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    getExistingVariantColors(),
   ]);
   if (!product) notFound();
 
@@ -46,7 +47,11 @@ async function EditProduct({ params }: Props) {
         }}
       />
       <ProductImagesPanel productId={product.id} images={product.images} />
-      <ProductVariantsPanel productId={product.id} variants={product.variants} />
+      <ProductVariantsPanel
+        productId={product.id}
+        variants={product.variants}
+        existingColors={existingColors}
+      />
     </div>
   );
 }
