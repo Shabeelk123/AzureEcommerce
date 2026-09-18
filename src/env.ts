@@ -33,6 +33,11 @@ export const env = createEnv({
     UPSTASH_REDIS_REST_TOKEN: z.string().min(1),
 
     SENTRY_DSN: z.string().optional(),
+
+    // Shared secret for the bulk-import script's revalidation callback
+    // (src/app/api/admin/revalidate/route.ts) — optional so existing
+    // deploys don't fail validation until one is set.
+    REVALIDATE_SECRET: z.string().min(16).optional(),
   },
   client: {
     NEXT_PUBLIC_RAZORPAY_KEY_ID: z.string().min(1),

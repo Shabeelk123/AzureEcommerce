@@ -51,6 +51,9 @@ Thumbs.db
 # vercel
 .vercel
 
+# local product photos/data staged for scripts/import-products.ts
+/products-import/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
