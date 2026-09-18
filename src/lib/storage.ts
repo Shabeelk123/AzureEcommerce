@@ -61,6 +61,34 @@ export async function createPresignedUploadUrl(params: {
 
 const MAX_FETCHED_IMAGE_BYTES = 15 * 1024 * 1024; // 15MB
 
+async function uploadBuffer(
+  buffer: Buffer,
+  contentType: string,
+  folder: "products" | "categories" | "collections",
+): Promise<{ url: string; width: number; height: number }> {
+  if (!ALLOWED_CONTENT_TYPES.has(contentType)) {
+    throw new StorageError(`Unsupported content type: ${contentType}`);
+  }
+  if (buffer.byteLength > MAX_FETCHED_IMAGE_BYTES) {
+    throw new StorageError("Image exceeds the 15MB limit.");
+  }
+
+  const extension = contentType.split("/")[1];
+  const key = `${folder}/${nanoid()}.${extension}`;
+
+  await r2.send(
+    new PutObjectCommand({
+      Bucket: env.R2_BUCKET,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType,
+    }),
+  );
+
+  const { width, height } = imageSize(buffer);
+  return { url: `${env.R2_PUBLIC_URL}/${key}`, width, height };
+}
+
 /**
  * Server-side counterpart to the presigned-URL flow above: fetches an
  * image from an external URL (e.g. one an n8n workflow hands us) and
@@ -83,8 +111,8 @@ export async function uploadImageFromUrl(
   }
 
   const contentType = response.headers.get("content-type")?.split(";")[0].trim();
-  if (!contentType || !ALLOWED_CONTENT_TYPES.has(contentType)) {
-    throw new StorageError(`Unsupported or missing content type "${contentType}" for ${sourceUrl}`);
+  if (!contentType) {
+    throw new StorageError(`Missing content type for ${sourceUrl}`);
   }
 
   const contentLength = Number(response.headers.get("content-length"));
@@ -93,22 +121,31 @@ export async function uploadImageFromUrl(
   }
 
   const buffer = Buffer.from(await response.arrayBuffer());
-  if (buffer.byteLength > MAX_FETCHED_IMAGE_BYTES) {
-    throw new StorageError(`Image exceeds the 15MB limit: ${sourceUrl}`);
+  return uploadBuffer(buffer, contentType, folder);
+}
+
+/**
+ * Uploads a base64-encoded image straight from the request body — for a
+ * caller (e.g. an n8n workflow reading local files with no public URL to
+ * hand us) that sends raw bytes instead of a fetchable link. See
+ * uploadImageFromUrl above for the URL-based counterpart.
+ */
+export async function uploadImageBase64(
+  base64Data: string,
+  contentType: string,
+  folder: "products" | "categories" | "collections",
+): Promise<{ url: string; width: number; height: number }> {
+  let buffer: Buffer;
+  try {
+    // Tolerate a data: URI prefix (e.g. "data:image/jpeg;base64,...") in
+    // case a caller pastes one in directly rather than the raw payload.
+    const raw = base64Data.includes(",") ? base64Data.split(",", 2)[1] : base64Data;
+    buffer = Buffer.from(raw, "base64");
+  } catch (error) {
+    throw new StorageError(`Invalid base64 image data: ${(error as Error).message}`);
   }
-
-  const extension = contentType.split("/")[1];
-  const key = `${folder}/${nanoid()}.${extension}`;
-
-  await r2.send(
-    new PutObjectCommand({
-      Bucket: env.R2_BUCKET,
-      Key: key,
-      Body: buffer,
-      ContentType: contentType,
-    }),
-  );
-
-  const { width, height } = imageSize(buffer);
-  return { url: `${env.R2_PUBLIC_URL}/${key}`, width, height };
+  if (buffer.byteLength === 0) {
+    throw new StorageError("Decoded image data is empty.");
+  }
+  return uploadBuffer(buffer, contentType, folder);
 }

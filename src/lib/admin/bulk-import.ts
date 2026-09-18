@@ -2,9 +2,14 @@ import "server-only";
 import { z } from "zod";
 import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { uploadImageFromUrl } from "@/lib/storage";
+import { uploadImageBase64, uploadImageFromUrl } from "@/lib/storage";
 
 export class BulkImportError extends Error {}
+
+const base64ImageSchema = z.object({
+  base64: z.string().min(1),
+  contentType: z.enum(["image/jpeg", "image/png", "image/webp", "image/avif"]),
+});
 
 const variantSchema = z.object({
   colorName: z.string().trim().min(1).max(60),
@@ -45,8 +50,16 @@ export const productImportSchema = z.object({
   seoTitle: z.string().trim().max(200).optional(),
   seoDescription: z.string().trim().max(500).optional(),
   status: z.enum(["DRAFT", "ACTIVE", "ARCHIVED"]).default("ACTIVE"),
-  imageUrls: z.array(z.url()).min(1, "at least one image URL is required"),
+  // Either (or both) — a publicly fetchable URL per image, or the raw
+  // bytes base64-encoded (for a caller with local files and no public
+  // host to link to, e.g. n8n's Read/Write Files from Disk node).
+  // Attached in the order given, imageUrls first.
+  imageUrls: z.array(z.url()).default([]),
+  images: z.array(base64ImageSchema).default([]),
   variants: z.array(variantSchema).min(1, "at least one variant is required"),
+}).refine((data) => data.imageUrls.length + data.images.length > 0, {
+  message: "at least one image is required, via imageUrls or images",
+  path: ["imageUrls"],
 });
 
 export type ProductImportInput = z.infer<typeof productImportSchema>;
@@ -115,11 +128,13 @@ export async function importProduct(input: ProductImportInput): Promise<ImportOu
     .map((s) => `collection "${s}" doesn't exist, skipped`);
 
   // Fetch/upload every image before writing anything to the DB, so a bad
-  // image URL fails the whole request instead of leaving a half-created
-  // product behind.
-  const uploaded = await Promise.all(
-    input.imageUrls.map((url) => uploadImageFromUrl(url, "products")),
-  );
+  // image fails the whole request instead of leaving a half-created
+  // product behind. URLs first, then base64 payloads, preserving the
+  // caller's intended gallery order.
+  const uploaded = await Promise.all([
+    ...input.imageUrls.map((url) => uploadImageFromUrl(url, "products")),
+    ...input.images.map((img) => uploadImageBase64(img.base64, img.contentType, "products")),
+  ]);
 
   const product = await prisma.product.create({
     data: {
