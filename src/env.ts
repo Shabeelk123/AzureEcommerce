@@ -34,10 +34,13 @@ export const env = createEnv({
 
     SENTRY_DSN: z.string().optional(),
 
-    // Shared secret for the bulk-import script's revalidation callback
-    // (src/app/api/admin/revalidate/route.ts) — optional so existing
-    // deploys don't fail validation until one is set.
-    REVALIDATE_SECRET: z.string().min(16).optional(),
+    // Bearer token for the bulk product-import API
+    // (src/app/api/admin/products/import/route.ts) — a separate secret
+    // from AUTH_SECRET so an automation tool (e.g. n8n) can be revoked
+    // independently of user sessions. Optional so existing deploys don't
+    // fail validation until one is set; the route itself refuses to run
+    // without it configured.
+    PRODUCT_IMPORT_API_KEY: z.string().min(16).optional(),
   },
   client: {
     NEXT_PUBLIC_RAZORPAY_KEY_ID: z.string().min(1),

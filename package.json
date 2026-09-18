@@ -18,7 +18,6 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "db:seed": "prisma db seed",
-    "import:products": "tsx scripts/import-products.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
